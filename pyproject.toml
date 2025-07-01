@@ -1,0 +1,46 @@
+[project]
+name = "diffused"
+version = "0.1.0"
+description = ""
+readme = "README.md"
+requires-python = ">3.10,<4.0"
+authors = [
+    {name = "Willian Rampazzo"},
+    {email = "willianr@redhat.com"},
+]
+
+dependencies = [
+    "click",
+]
+
+[project.optional-dependencies]
+dev = [
+    "tox",
+    "diffused[black]",
+    "diffused[flake8]",
+    "diffused[isort]",
+    "diffused[mypy]",
+    "diffused[pytest]",
+]
+black = [
+    "black",
+]
+flake8 = [
+    "flake8",
+]
+isort = [
+    "isort",
+]
+mypy = [
+    "mypy",
+]
+pytest = [
+    "pytest",
+    "pytest-cov",
+    "pytest-asyncio",
+    "setuptools",
+]
+
+[project.urls]
+documentation = "https://github.com/konflux-ci/diffused/tree/main/docs"
+repository = "https://github.com/konflux-ci/diffused"
