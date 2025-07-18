@@ -11,6 +11,7 @@ authors = [
 
 dependencies = [
     "click",
+    "rich",
 ]
 
 [project.optional-dependencies]
@@ -44,3 +45,6 @@ pytest = [
 [project.urls]
 documentation = "https://github.com/konflux-ci/diffused/tree/main/docs"
 repository = "https://github.com/konflux-ci/diffused"
+
+[project.scripts]
+diffused = "diffused.cli:cli"
