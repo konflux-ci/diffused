@@ -2,6 +2,7 @@
 
 import json
 import os
+from typing import IO
 
 import click
 from rich.columns import Columns
@@ -13,9 +14,9 @@ from rich.text import Text
 from diffused.differ import VulnerabilityDiffer
 
 
-def format_vulnerabilities_table(vulnerabilities_data: dict) -> None:
+def format_vulnerabilities_table(vulnerabilities_data: dict, file: IO[str] | None) -> None:
     """Format vulnerability data as a rich table."""
-    console = Console()
+    console = Console(file=file)
 
     table = Table(title="Vulnerability Differences")
     table.add_column("CVE ID", style="cyan", no_wrap=True)
@@ -39,9 +40,10 @@ def format_vulnerabilities_table(vulnerabilities_data: dict) -> None:
     console.print(table)
 
 
-def format_vulnerabilities_list(vulnerabilities_list: list) -> None:
+def format_vulnerabilities_list(vulnerabilities_list: list, file: IO[str] | None) -> None:
     """Format vulnerability list as a rich panel with columns."""
-    console = Console()
+
+    console = Console(file=file)
 
     if not vulnerabilities_list:
         console.print(
@@ -104,7 +106,15 @@ def cli(ctx: click.core.Context) -> None:
     help="Output format (rich or json).",
     required=False,
 )
-def sbom_diff(previous_sbom: str, next_sbom: str, all_info: bool, output: str):
+@click.option(
+    "-f",
+    "--file",
+    type=click.File("w", lazy=True),
+    default="-",
+    help="File to write the output to.",
+    required=False,
+)
+def sbom_diff(previous_sbom: str, next_sbom: str, all_info: bool, output: str, file: IO[str]):
     """Show the vulnerability diff between two SBOMs."""
     if not os.path.isfile(previous_sbom):
         click.echo(f"Could not find {previous_sbom}")
@@ -117,14 +127,14 @@ def sbom_diff(previous_sbom: str, next_sbom: str, all_info: bool, output: str):
 
     if output == "json":
         if not all_info:
-            click.echo(json.dumps(vuln_differ.vulnerabilities_diff, indent=2))
+            json.dump(vuln_differ.vulnerabilities_diff, file, indent=2)
         else:
-            click.echo(json.dumps(vuln_differ.vulnerabilities_diff_all_info, indent=2))
+            json.dump(vuln_differ.vulnerabilities_diff_all_info, file, indent=2)
     else:  # rich format
         if not all_info:
-            format_vulnerabilities_list(vuln_differ.vulnerabilities_diff)
+            format_vulnerabilities_list(vuln_differ.vulnerabilities_diff, file)
         else:
-            format_vulnerabilities_table(vuln_differ.vulnerabilities_diff_all_info)
+            format_vulnerabilities_table(vuln_differ.vulnerabilities_diff_all_info, file)
 
 
 # image vulnerability diff command
@@ -158,7 +168,15 @@ def sbom_diff(previous_sbom: str, next_sbom: str, all_info: bool, output: str):
     help="Output format (rich or json).",
     required=False,
 )
-def image_diff(previous_image: str, next_image: str, all_info: bool, output: str):
+@click.option(
+    "-f",
+    "--file",
+    type=click.File("w", lazy=True),
+    default="-",
+    help="File to write the output to.",
+    required=False,
+)
+def image_diff(previous_image: str, next_image: str, all_info: bool, output: str, file: IO[str]):
     """Show the vulnerability diff between two container images."""
     if os.path.isfile(previous_image) or os.path.isfile(next_image):
         click.echo(
@@ -171,14 +189,14 @@ def image_diff(previous_image: str, next_image: str, all_info: bool, output: str
 
     if output == "json":
         if not all_info:
-            click.echo(json.dumps(vuln_differ.vulnerabilities_diff, indent=2))
+            json.dump(vuln_differ.vulnerabilities_diff, file, indent=2)
         else:
-            click.echo(json.dumps(vuln_differ.vulnerabilities_diff_all_info, indent=2))
+            json.dump(vuln_differ.vulnerabilities_diff_all_info, file, indent=2)
     else:  # rich format
         if not all_info:
-            format_vulnerabilities_list(vuln_differ.vulnerabilities_diff)
+            format_vulnerabilities_list(vuln_differ.vulnerabilities_diff, file)
         else:
-            format_vulnerabilities_table(vuln_differ.vulnerabilities_diff_all_info)
+            format_vulnerabilities_table(vuln_differ.vulnerabilities_diff_all_info, file)
 
 
 if __name__ == "__main__":
