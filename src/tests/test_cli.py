@@ -65,7 +65,11 @@ def test_sbom_diff_basic(
     mock_differ.assert_called_once_with(
         previous_sbom="/path/to/prev.json", next_sbom="/path/to/next.json"
     )
-    mock_format_list.assert_called_once_with(sample_vulnerabilities_list)
+    # check that format_vulnerabilities_list was called with data and a file object
+    assert mock_format_list.call_count == 1
+    args, kwargs = mock_format_list.call_args
+    assert args[0] == sample_vulnerabilities_list
+    assert hasattr(args[1], "write")  # file-like object
 
 
 @patch("diffused.cli.os.path.isfile")
@@ -86,7 +90,11 @@ def test_sbom_diff_all_info(
     )
 
     assert result.exit_code == 0
-    mock_format_table.assert_called_once_with(sample_vulnerabilities_all_info)
+    # check that format_vulnerabilities_table was called with data and a file object
+    assert mock_format_table.call_count == 1
+    args, kwargs = mock_format_table.call_args
+    assert args[0] == sample_vulnerabilities_all_info
+    assert hasattr(args[1], "write")  # file-like object
 
 
 @patch("diffused.cli.os.path.isfile")
@@ -169,7 +177,11 @@ def test_image_diff_basic(mock_format_list, mock_differ, runner, sample_vulnerab
 
     assert result.exit_code == 0
     mock_differ.assert_called_once_with(previous_image="prev:latest", next_image="next:latest")
-    mock_format_list.assert_called_once_with(sample_vulnerabilities_list)
+    # check that format_vulnerabilities_list was called with data and a file object
+    assert mock_format_list.call_count == 1
+    args, kwargs = mock_format_list.call_args
+    assert args[0] == sample_vulnerabilities_list
+    assert hasattr(args[1], "write")  # file-like object
 
 
 @patch("diffused.cli.VulnerabilityDiffer")
@@ -186,7 +198,11 @@ def test_image_diff_all_info(
     result = runner.invoke(cli, ["image-diff", "-p", "prev:latest", "-n", "next:latest", "-a"])
 
     assert result.exit_code == 0
-    mock_format_table.assert_called_once_with(sample_vulnerabilities_all_info)
+    # check that format_vulnerabilities_table was called with data and a file object
+    assert mock_format_table.call_count == 1
+    args, kwargs = mock_format_table.call_args
+    assert args[0] == sample_vulnerabilities_all_info
+    assert hasattr(args[1], "write")  # file-like object
 
 
 @patch("diffused.cli.VulnerabilityDiffer")
@@ -290,7 +306,7 @@ def test_format_vulnerabilities_list_empty(mock_console):
     mock_console_instance = MagicMock()
     mock_console.return_value = mock_console_instance
 
-    format_vulnerabilities_list([])
+    format_vulnerabilities_list([], None)
 
     mock_console_instance.print.assert_called_once()
     # verify it was called with a Panel for no vulnerabilities
@@ -309,7 +325,7 @@ def test_format_vulnerabilities_list_with_data(
     mock_console_instance = MagicMock()
     mock_console.return_value = mock_console_instance
 
-    format_vulnerabilities_list(sample_vulnerabilities_list)
+    format_vulnerabilities_list(sample_vulnerabilities_list, None)
 
     # verify Text objects were created for each CVE
     assert mock_text.call_count == len(sample_vulnerabilities_list)
@@ -325,7 +341,7 @@ def test_format_vulnerabilities_table(mock_table, mock_console, sample_vulnerabi
     mock_table_instance = MagicMock()
     mock_table.return_value = mock_table_instance
 
-    format_vulnerabilities_table(sample_vulnerabilities_all_info)
+    format_vulnerabilities_table(sample_vulnerabilities_all_info, None)
 
     # verify table was created and configured
     mock_table.assert_called_once_with(title="Vulnerability Differences")
