@@ -3,7 +3,7 @@ name = "diffused"
 version = "0.1.0"
 description = ""
 readme = "README.md"
-requires-python = ">3.10,<4.0"
+requires-python = ">=3.10,<4.0"
 authors = [
     {name = "Willian Rampazzo"},
     {email = "willianr@redhat.com"},
