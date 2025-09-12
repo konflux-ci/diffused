@@ -457,3 +457,33 @@ def test_integration_workflow():
     assert package_info["package1"]["previous_version"] == "1.0.0"
     assert package_info["package1"]["new_version"] == "1.1.0"
     assert package_info["package1"]["removed"] is False
+
+
+def test_init_with_invalid_scanner():
+    """Test VulnerabilityDiffer initialization with invalid scanner."""
+    with pytest.raises(
+        ValueError, match="Unsupported scanner: invalid. Supported scanners: \\['acs', 'trivy'\\]"
+    ):
+        VulnerabilityDiffer(
+            previous_sbom="/path/to/previous.json",
+            next_sbom="/path/to/next.json",
+            scanner="invalid",
+        )
+
+
+@patch.dict("os.environ", {"ROX_ENDPOINT": "https://localhost:8443", "ROX_API_TOKEN": "test-token"})
+def test_init_with_valid_scanners():
+    """Test VulnerabilityDiffer initialization with valid scanners."""
+    # Test with trivy scanner (default)
+    differ_trivy = VulnerabilityDiffer(
+        previous_sbom="/path/to/previous.json", next_sbom="/path/to/next.json", scanner="trivy"
+    )
+    assert differ_trivy.previous_release.sbom == "/path/to/previous.json"
+    assert differ_trivy.next_release.sbom == "/path/to/next.json"
+
+    # Test with acs scanner
+    differ_acs = VulnerabilityDiffer(
+        previous_sbom="/path/to/previous.json", next_sbom="/path/to/next.json", scanner="acs"
+    )
+    assert differ_acs.previous_release.sbom == "/path/to/previous.json"
+    assert differ_acs.next_release.sbom == "/path/to/next.json"

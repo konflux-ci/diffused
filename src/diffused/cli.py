@@ -114,7 +114,17 @@ def cli(ctx: click.core.Context) -> None:
     help="File to write the output to.",
     required=False,
 )
-def sbom_diff(previous_sbom: str, next_sbom: str, all_info: bool, output: str, file: IO[str]):
+@click.option(
+    "-s",
+    "--scanner",
+    type=click.Choice(["trivy"], case_sensitive=False),
+    default="trivy",
+    help="Scanner to use for vulnerability detection (only trivy is supported for SBOM scanning).",
+    required=False,
+)
+def sbom_diff(
+    previous_sbom: str, next_sbom: str, all_info: bool, output: str, file: IO[str], scanner: str
+):
     """Show the vulnerability diff between two SBOMs."""
     if not os.path.isfile(previous_sbom):
         click.echo(f"Could not find {previous_sbom}")
@@ -123,7 +133,9 @@ def sbom_diff(previous_sbom: str, next_sbom: str, all_info: bool, output: str, f
         click.echo(f"Could not find {next_sbom}")
         exit(1)
 
-    vuln_differ = VulnerabilityDiffer(previous_sbom=previous_sbom, next_sbom=next_sbom)
+    vuln_differ = VulnerabilityDiffer(
+        previous_sbom=previous_sbom, next_sbom=next_sbom, scanner=scanner
+    )
 
     if output == "json":
         if not all_info:
@@ -176,7 +188,17 @@ def sbom_diff(previous_sbom: str, next_sbom: str, all_info: bool, output: str, f
     help="File to write the output to.",
     required=False,
 )
-def image_diff(previous_image: str, next_image: str, all_info: bool, output: str, file: IO[str]):
+@click.option(
+    "-s",
+    "--scanner",
+    type=click.Choice(["acs", "trivy"], case_sensitive=False),
+    default="trivy",
+    help="Scanner to use for vulnerability detection (default=trivy).",
+    required=False,
+)
+def image_diff(
+    previous_image: str, next_image: str, all_info: bool, output: str, file: IO[str], scanner: str
+):
     """Show the vulnerability diff between two container images."""
     if os.path.isfile(previous_image) or os.path.isfile(next_image):
         click.echo(
@@ -185,7 +207,9 @@ def image_diff(previous_image: str, next_image: str, all_info: bool, output: str
         )
         exit(1)
 
-    vuln_differ = VulnerabilityDiffer(previous_image=previous_image, next_image=next_image)
+    vuln_differ = VulnerabilityDiffer(
+        previous_image=previous_image, next_image=next_image, scanner=scanner
+    )
 
     if output == "json":
         if not all_info:

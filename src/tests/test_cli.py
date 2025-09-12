@@ -63,7 +63,7 @@ def test_sbom_diff_basic(
     mock_isfile.assert_any_call("/path/to/prev.json")
     mock_isfile.assert_any_call("/path/to/next.json")
     mock_differ.assert_called_once_with(
-        previous_sbom="/path/to/prev.json", next_sbom="/path/to/next.json"
+        previous_sbom="/path/to/prev.json", next_sbom="/path/to/next.json", scanner="trivy"
     )
     # check that format_vulnerabilities_list was called with data and a file object
     assert mock_format_list.call_count == 1
@@ -176,7 +176,9 @@ def test_image_diff_basic(mock_format_list, mock_differ, runner, sample_vulnerab
     result = runner.invoke(cli, ["image-diff", "-p", "prev:latest", "-n", "next:latest"])
 
     assert result.exit_code == 0
-    mock_differ.assert_called_once_with(previous_image="prev:latest", next_image="next:latest")
+    mock_differ.assert_called_once_with(
+        previous_image="prev:latest", next_image="next:latest", scanner="trivy"
+    )
     # check that format_vulnerabilities_list was called with data and a file object
     assert mock_format_list.call_count == 1
     args, kwargs = mock_format_list.call_args
@@ -371,6 +373,76 @@ def test_sbom_diff_case_insensitive_output(runner):
         assert output_data == ["CVE-2024-1234"]
 
 
+def test_sbom_diff_with_trivy_scanner(runner, sample_vulnerabilities_list):
+    """Test sbom-diff command with trivy scanner (explicit)."""
+    with (
+        patch("diffused.cli.os.path.isfile", return_value=True),
+        patch("diffused.cli.VulnerabilityDiffer") as mock_differ,
+    ):
+        mock_differ_instance = MagicMock()
+        mock_differ_instance.vulnerabilities_diff = sample_vulnerabilities_list
+        mock_differ.return_value = mock_differ_instance
+
+        result = runner.invoke(
+            cli,
+            [
+                "sbom-diff",
+                "-p",
+                "/path/to/prev.json",
+                "-n",
+                "/path/to/next.json",
+                "--scanner",
+                "trivy",
+            ],
+        )
+
+        assert result.exit_code == 0
+        mock_differ.assert_called_once_with(
+            previous_sbom="/path/to/prev.json", next_sbom="/path/to/next.json", scanner="trivy"
+        )
+
+
+def test_sbom_diff_with_acs_scanner_error(runner):
+    """Test sbom-diff command fails when ACS scanner is used."""
+    result = runner.invoke(
+        cli,
+        ["sbom-diff", "-p", "/path/to/prev.json", "-n", "/path/to/next.json", "--scanner", "acs"],
+    )
+
+    assert result.exit_code == 2
+    assert "Invalid value for '-s' / '--scanner': 'acs' is not 'trivy'" in result.output
+
+
+def test_sbom_diff_scanner_case_insensitive(runner):
+    """Test that scanner option is case insensitive for sbom-diff."""
+    with (
+        patch("diffused.cli.os.path.isfile", return_value=True),
+        patch("diffused.cli.VulnerabilityDiffer") as mock_differ,
+    ):
+        mock_differ_instance = MagicMock()
+        mock_differ_instance.vulnerabilities_diff = ["CVE-2024-1234"]
+        mock_differ.return_value = mock_differ_instance
+
+        # test uppercase TRIVY
+        result = runner.invoke(
+            cli,
+            [
+                "sbom-diff",
+                "-p",
+                "/path/to/prev.json",
+                "-n",
+                "/path/to/next.json",
+                "--scanner",
+                "TRIVY",
+            ],
+        )
+
+        assert result.exit_code == 0
+        mock_differ.assert_called_once_with(
+            previous_sbom="/path/to/prev.json", next_sbom="/path/to/next.json", scanner="trivy"
+        )
+
+
 def test_cli_help_commands(runner):
     """Test help for individual commands."""
     # test sbom-diff help
@@ -409,6 +481,71 @@ def test_integration_all_options(mock_differ, runner):
     assert result.exit_code == 0
     output_data = json.loads(result.output.strip())
     assert output_data == {"CVE-2024-1234": []}
+
+
+@patch("diffused.cli.VulnerabilityDiffer")
+def test_image_diff_with_acs_scanner(mock_differ, runner, sample_vulnerabilities_list):
+    """Test image_diff command with ACS scanner."""
+    mock_differ_instance = MagicMock()
+    mock_differ_instance.vulnerabilities_diff = sample_vulnerabilities_list
+    mock_differ.return_value = mock_differ_instance
+
+    result = runner.invoke(
+        cli, ["image-diff", "-p", "prev:latest", "-n", "next:latest", "--scanner", "acs"]
+    )
+
+    assert result.exit_code == 0
+    mock_differ.assert_called_once_with(
+        previous_image="prev:latest", next_image="next:latest", scanner="acs"
+    )
+
+
+@patch("diffused.cli.VulnerabilityDiffer")
+def test_image_diff_with_trivy_scanner(mock_differ, runner, sample_vulnerabilities_list):
+    """Test image_diff command with Trivy scanner (explicit)."""
+    mock_differ_instance = MagicMock()
+    mock_differ_instance.vulnerabilities_diff = sample_vulnerabilities_list
+    mock_differ.return_value = mock_differ_instance
+
+    result = runner.invoke(
+        cli, ["image-diff", "-p", "prev:latest", "-n", "next:latest", "--scanner", "trivy"]
+    )
+
+    assert result.exit_code == 0
+    mock_differ.assert_called_once_with(
+        previous_image="prev:latest", next_image="next:latest", scanner="trivy"
+    )
+
+
+def test_image_diff_invalid_scanner(runner):
+    """Test image_diff command with invalid scanner."""
+    result = runner.invoke(
+        cli, ["image-diff", "-p", "prev:latest", "-n", "next:latest", "--scanner", "invalid"]
+    )
+
+    assert result.exit_code != 0
+    assert "Invalid value" in result.output
+    assert "invalid" in result.output
+    assert "trivy" in result.output
+    assert "acs" in result.output
+
+
+def test_image_diff_scanner_case_insensitive(runner):
+    """Test that scanner option is case insensitive."""
+    with patch("diffused.cli.VulnerabilityDiffer") as mock_differ:
+        mock_differ_instance = MagicMock()
+        mock_differ_instance.vulnerabilities_diff = ["CVE-2024-1234"]
+        mock_differ.return_value = mock_differ_instance
+
+        # test uppercase ACS
+        result = runner.invoke(
+            cli, ["image-diff", "-p", "prev:latest", "-n", "next:latest", "--scanner", "ACS"]
+        )
+
+        assert result.exit_code == 0
+        mock_differ.assert_called_once_with(
+            previous_image="prev:latest", next_image="next:latest", scanner="acs"
+        )
 
 
 # the following test throws the following warning on pytest:
