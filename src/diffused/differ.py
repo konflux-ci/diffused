@@ -5,6 +5,7 @@ import logging
 import os
 import tempfile
 
+from diffused.scanners.acs import ACSScanner
 from diffused.scanners.trivy import TrivyScanner
 
 logger = logging.getLogger(__name__)
@@ -19,12 +20,30 @@ class VulnerabilityDiffer:
         next_sbom: str | None = None,
         previous_image: str | None = None,
         next_image: str | None = None,
+        scanner: str = "trivy",
     ):
-        self.previous_release = TrivyScanner(sbom=previous_sbom, image=previous_image)
-        self.next_release = TrivyScanner(sbom=next_sbom, image=next_image)
+        # Create scanner instances based on the scanner parameter
+        scanner_class = self._get_scanner_class(scanner)
+        self.previous_release = scanner_class(sbom=previous_sbom, image=previous_image)
+        self.next_release = scanner_class(sbom=next_sbom, image=next_image)
         self._vulnerabilities_diff: list[str] = []
         self._vulnerabilities_diff_all_info: dict[str, list[dict[str, dict[str, str | bool]]]] = {}
         self.error: str = ""
+
+    @staticmethod
+    def _get_scanner_class(scanner: str):
+        """Get the scanner class based on the scanner name."""
+        scanner_map = {
+            "acs": ACSScanner,
+            "trivy": TrivyScanner,
+        }
+
+        if scanner not in scanner_map:
+            raise ValueError(
+                f"Unsupported scanner: {scanner}. Supported scanners: {list(scanner_map.keys())}"
+            )
+
+        return scanner_map[scanner]
 
     def retrieve_sboms(self) -> None:
         """Retrieves the SBOMs for the container images, if not present."""
