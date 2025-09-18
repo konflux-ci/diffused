@@ -8,6 +8,7 @@ on:
 
 jobs:
   test:
+    name: Run Unit Tests and Linters
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -43,7 +44,15 @@ jobs:
 
     - name: Upload coverage to Codecov
       if: matrix.python-version == '3.12'
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
-        file: ./coverage.xml
-        fail_ci_if_error: true
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+  commitlint:
+    name: Conventional Commit Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4.2.2
+
+      - uses: webiny/action-conventional-commits@v1.3.0
