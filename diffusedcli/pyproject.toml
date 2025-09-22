@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "diffused"
+name = "diffused-cli"
 version = "0.1.0"
-description = "A vulnerability scan diffing tool for container images and SBOMs"
+description = "A vulnerability scan diffing command-line tool for container images and SBOMs"
 readme = "README.md"
 requires-python = ">=3.12,<4.0"
 authors = [
@@ -29,6 +29,7 @@ classifiers = [
 
 dependencies = [
     "click",
+    "diffused_lib",
     "rich",
 ]
 
@@ -67,4 +68,4 @@ homepage = "https://github.com/konflux-ci/diffused"
 diffused = "diffusedcli.cli:cli"
 
 [tool.hatch.build.targets.wheel]
-packages = ["diffused", "diffusedcli"]
+packages = ["diffusedcli"]

@@ -21,21 +21,31 @@ We welcome contributions! Check below on how to get started.
 
 ## Structure
 
-Diffused is built with a modular structure:
+Diffused is built with a modular structure.
+
+### Library Structure
 
 ```
-src/diffused/
+diffused/diffused/
 ├── scanners/          # Scanner implementations
 │   ├── base.py        # Abstract scanner interface
+│   ├── acs.py         # RHACS scanner implementation
 │   ├── trivy.py       # Trivy scanner implementation
 │   └── models.py      # Data models (Package, etc.)
-├── differ.py          # Core diffing logic
-└── cli.py             # Command-line interface
+└── differ.py          # Core diffing logic
+```
+
+### CLI Structure
+
+```
+diffusedcli/diffusedcli/
+└── cli.py             # CLI implementation
 ```
 
 ### Key Components
 
 - **BaseScanner**: Abstract base class defining the scanner interface
+- **ACSScanner**: Concrete implementation using RHACS for vulnerability scanning
 - **TrivyScanner**: Concrete implementation using Trivy for vulnerability scanning
 - **VulnerabilityDiffer**: Core engine for comparing vulnerability reports
 - **CLI Module**: User-friendly command-line interface with rich output
@@ -48,7 +58,8 @@ python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install development dependencies
-pip install -e ".[dev]"
+pip install -e ./diffused/.[dev]
+pip install -e ./diffusedcli/.[dev]
 ```
 
 ### Running Tests

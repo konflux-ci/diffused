@@ -1,87 +1,62 @@
 # Diffused
 
-A vulnerability scan diffing tool for container images and SBOMs (Software Bill of Materials). Diffused helps track security improvements and regressions between different versions of container images by comparing SBOMs vulnerability scan results from SBOMs.
+A vulnerability scan diffing tool for container images and SBOMs (Software Bill of Materials). Diffused helps track security improvements and regressions between different versions of container images by comparing vulnerability scan results from SBOMs.
 
 Its name comes from the pun `diff + used`, which means it performs the diffing of both results.
 
+## Project Structure
+
+This project is split into two main components:
+
+- **[diffused/](./diffused/)** - Core library providing vulnerability scanning and diffing functionality
+- **[diffusedcli/](./diffusedcli/)** - Command-line interface for the diffused library
+
 ## Features
 
-- 🔍 **Vulnerability Scanning**: Automated scanning of SBOMs using [Trivy](https://trivy.dev/)
-- 📊 **SBOM Diffing**: Direct comparison of SPDX-JSON formatted SBOMs
+- 🔍 **Vulnerability Scanning**: Automated scanning of SBOMs using [Trivy](https://trivy.dev/) (default) or scanning of container images using [RHACS](https://www.redhat.com/pt-br/technologies/cloud-computing/openshift/advanced-cluster-security-kubernetes)
+- 📊 **SBOM Diffing**: Direct comparison of SPDX-JSON formatted SBOMs (Trivy only)
 - 📄 **Multiple Output Formats**: Support for both rich text and JSON output
 
-## Getting started
+## Quick Start
 
 ### Prerequisites
 
-1. **Install Trivy**: Follow the [official Trivy installation guide](https://aquasecurity.github.io/trivy/latest/getting-started/installation/)
-2. **Python Environment**: Ensure Python 3.10+ is installed
+1. **Install the scanner**:
+    1. **Trivy**: Follow the [official Trivy installation guide](https://aquasecurity.github.io/trivy/latest/getting-started/installation/)
+    2. **RHACS**: Follow the [official roxctl installation guide](https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.8/html/roxctl_cli/index) 
+2. **Python Environment**: Ensure Python 3.12+ is installed
 
 ### Installation
 
-#### From Source
+#### Library
 
 ```bash
-git clone https://github.com/konflux-ci/diffused.git
-cd diffused
-pip install -e .
+# Install the library
+pip install ./diffused
+
+# Use in Python code
+from diffused.differ import VulnerabilityDiffer
 ```
 
-### Usage
-
-#### Compare Container Images
+#### CLI Tool
 
 ```bash
-# Basic vulnerability diff between two container images
+# Install the CLI tool
+pip install ./diffusedcli
+
+# Basic usage
 diffused image-diff -p ubuntu:20.04 -n ubuntu:22.04
-
-# Get detailed information about each vulnerability
-diffused image-diff -p nginx:1.20 -n nginx:1.21 --all-info
-
-# Save output to JSON file
-diffused image-diff -p app:v1.0 -n app:v2.0 --output json --file report.json
 ```
 
-#### Compare SBOMs
+## Components
 
-```bash
-# Compare two SBOM files
-diffused sbom-diff -p previous.json -n current.json
+### Library ([diffused/](./diffused/))
 
-# Get detailed vulnerability information
-diffused sbom-diff -p old-sbom.json -n new-sbom.json --all-info
+The core library provides programmatic access to vulnerability scanning and diffing functionality. See [diffused/README.md](./diffused/README.md) for detailed library documentation.
 
-# Export to file with rich formatting
-diffused sbom-diff -p v1-sbom.json -n v2-sbom.json --file vulnerability-report.txt
-```
+### CLI ([diffusedcli/](./diffusedcli/))
 
-### CLI Commands and Options
-
-| Command | Description |
-|--------|-------|
-| `image-diff` | Show the vulnerability diff between two container images. |
-| `sbom-diff` | Show the vulnerability diff between two SBOMs. |
-
-| Options | Short | Command | Description | Default |
-|--------|--------|---------|-------------|---------|
-| `--previous-image` | `-p` | `image-diff` | Previous container image URL | Required |
-| `--next-image` | `-n` | `image-diff` | Next container image URL | Required |
-| `--previous-sbom` | `-p` | `sbom-diff` | Previous SBOM file path | Required |
-| `--next-sbom` | `-n` | `sbom-diff` | Next SBOM file path | Required |
-| `--all-info` | `-a` | All | Show detailed vulnerability info | False |
-| `--output` | `-o` | All | Output format (`rich`, `json`) | `rich` |
-| `--file` | `-f` | All | Output file (use `-` for stdout) | `-` |
-
-### Output Examples
-
-#### Rich Format (Default)
-
-![Rich Format](./docs/images/rich.png)
-
-#### Detailed Information
-
-![Detailed Information](./docs/images/detailed.png)
-
+The command-line interface provides an easy-to-use tool for comparing container images and SBOMs. See [diffusedcli/README.md](./diffusedcli/README.md) for detailed CLI documentation and usage examples.
 
 ## Contributing
 
