@@ -42,6 +42,9 @@ jobs:
     - name: Run pytest
       run: tox -e pytest
 
+    - name: Run pytest-cli
+      run: tox -e pytest-cli
+
     - name: Upload coverage to Codecov
       if: matrix.python-version == '3.12'
       uses: codecov/codecov-action@v5
