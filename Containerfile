@@ -26,14 +26,15 @@ RUN dnf update -y && \
 WORKDIR /app
 
 # Copy application source code
-COPY src/ /app/src/
-COPY pyproject.toml /app/
+COPY diffused/ /app/diffused/
+COPY diffusedcli/ /app/diffusedcli/
 COPY README.md /app/
 COPY LICENSE /app/
 
 # Install Python dependencies and the application
 RUN python3.12 -m pip install --no-cache-dir --upgrade pip && \
-    python3.12 -m pip install --no-cache-dir -e .
+    python3.12 -m pip install --no-cache-dir -e ./diffused && \
+    python3.12 -m pip install --no-cache-dir -e ./diffusedcli
 
 # Download and install scanners based on build argument
 RUN if [ "$SCANNER" = "acs" ] || [ "$SCANNER" = "all" ]; then \
@@ -72,14 +73,14 @@ RUN mkdir -p /app/output /app/temp /home/diffused && \
 USER diffused
 
 # Set working directory
-WORKDIR /app
+WORKDIR /home/diffused
 
 
 # Default scanner environment variable (can be overridden at runtime)
 ENV DEFAULT_SCANNER=${SCANNER}
 
 # Entrypoint script to invoke Diffused
-ENTRYPOINT ["python3.12", "-m", "diffused.cli"]
+ENTRYPOINT ["diffused"]
 
 # Default command shows help
 CMD ["--help"]
