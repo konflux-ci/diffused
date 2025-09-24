@@ -1,0 +1,167 @@
+name: Release to Test PyPI
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-lib:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+
+    - name: Update library version with epoch time
+      run: |
+        EPOCH_TIME=$(date +%s)
+        sed -i 's/version = "\([0-9.]*\)"/version = "\1-dev'${EPOCH_TIME}'"/' diffused/pyproject.toml
+
+    - name: Build library package
+      run: python -m build diffused/
+
+    - name: Check distribution
+      run: twine check diffused/dist/*
+
+    - name: Upload library artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: lib-dist
+        path: diffused/dist/
+
+  build-cli:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+
+    - name: Update CLI version with epoch time
+      run: |
+        EPOCH_TIME=$(date +%s)
+        sed -i 's/version = "\([0-9.]*\)"/version = "\1-dev'${EPOCH_TIME}'"/' diffusedcli/pyproject.toml
+
+    - name: Build CLI package
+      run: python -m build diffusedcli/
+
+    - name: Check distribution
+      run: twine check diffusedcli/dist/*
+
+    - name: Upload CLI artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: cli-dist
+        path: diffusedcli/dist/
+
+  test-lib:
+    runs-on: ubuntu-latest
+    needs: build-lib
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: Download library artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: lib-dist
+        path: diffused/dist/
+
+    - name: Install library package from dist
+      run: |
+        pip install diffused/dist/*.whl
+
+    - name: Test library installation
+      run: |
+        python -c "import diffused; print('Library imported successfully')"
+
+  test-cli:
+    runs-on: ubuntu-latest
+    needs: [build-lib, build-cli]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: Download library artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: lib-dist
+        path: diffused/dist/
+
+    - name: Install library package from dist
+      run: |
+        pip install diffused/dist/*.whl
+
+    - name: Download CLI artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: cli-dist
+        path: diffusedcli/dist/
+
+    - name: Install CLI package from dist
+      run: |
+        pip install diffusedcli/dist/*.whl
+
+    - name: Test CLI installation
+      run: |
+        python -c "import diffusedcli; print('CLI imported successfully')"
+        diffused --help
+
+  publish-to-test-pypi:
+    runs-on: ubuntu-latest
+    needs: [test-lib, test-cli]
+    permissions:
+      id-token: write
+
+    steps:
+    - name: Download library artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: lib-dist
+        path: lib-dist/
+
+    - name: Download CLI artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: cli-dist
+        path: cli-dist/
+
+    - name: Publish library to Test PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        repository-url: https://test.pypi.org/legacy/
+        packages-dir: lib-dist/
+
+    - name: Publish CLI to Test PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        repository-url: https://test.pypi.org/legacy/
+        packages-dir: cli-dist/

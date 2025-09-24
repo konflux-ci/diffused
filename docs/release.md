@@ -1,28 +1,76 @@
 # Release Process
 
-This document describes how to release and publish the Diffused package to PyPI.
+This document describes how to release and publish the Diffused package to PyPI using automated GitHub Actions workflows.
 
-## Prerequisites
+## Automated Releases
 
-Install the required tools:
+The project uses GitHub Actions to automatically build and publish packages to PyPI:
 
-```bash
-pip install twine
-```
+### Test Releases (Test PyPI)
+- **Trigger**: Every push to the `main` branch
+- **Workflow**: `.github/workflows/test-release.yml`
+- **Packages**: Both library (`diffused-lib`) and CLI (`diffused-cli`)
+- **Versioning**: Automatically appends `-dev{COMMIT_HASH}` to the current version
+- **Repository**: Test PyPI (https://test.pypi.org/)
+
+### Production Releases (PyPI)
+- **Trigger**: Git tags matching `v*` pattern (e.g., `v1.0.0`) or manual dispatch
+- **Workflow**: `.github/workflows/release.yml`
+- **Packages**: Both library (`diffused-lib`) and CLI (`diffused-cli`)
+- **Versioning**: Uses the exact version from `pyproject.toml` files
+- **Repository**: Production PyPI (https://pypi.org/)
+
+## Creating a Release
+
+### For Production Release:
+
+1. **Update versions** in both `pyproject.toml` files:
+   - `diffused/pyproject.toml`
+   - `diffusedcli/pyproject.toml`
+
+2. **Create and push a git tag:**
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+
+3. **GitHub Actions will automatically:**
+   - Build both packages
+   - Test installations
+   - Publish to PyPI
+
+### Manual Workflow Dispatch
+You can also trigger releases manually from the GitHub Actions UI.
 
 ## Version Management
 
 Before creating a new release:
 
-1. **Update the version** in `pyproject.toml`:
+1. **Update the version** in both `pyproject.toml` files:
    ```toml
+   # diffused/pyproject.toml
    version = "0.1.1"  # Increment appropriately
+
+   # diffusedcli/pyproject.toml
+   version = "0.1.1"  # Keep in sync with library
    ```
 
 2. **Follow semantic versioning:**
    - **MAJOR**: Incompatible API changes
    - **MINOR**: Backward-compatible functionality additions
    - **PATCH**: Backward-compatible bug fixes
+
+## Manual Release (Fallback)
+
+If you need to publish manually (when automated workflows are not available):
+
+### Prerequisites
+
+Install the required tools:
+
+```bash
+pip install build twine
+```
 
 ## Publishing to PyPI
 
@@ -101,9 +149,18 @@ password = <your-test-token>
 
 ## Release Checklist
 
-- [ ] Update version in `pyproject.toml`
-- [ ] Clean previous builds (`rm -rf dist/ build/`)
-- [ ] Build package (`python -m build`)
+### For Automated Releases:
+- [ ] Update versions in both `diffused/pyproject.toml` and `diffusedcli/pyproject.toml`
+- [ ] Commit and push changes to main
+- [ ] Create and push git tag (e.g., `git tag v1.0.0 && git push origin v1.0.0`)
+- [ ] Monitor GitHub Actions workflow completion
+- [ ] Verify packages are published to PyPI
+- [ ] Test installation: `pip install diffused-cli`
+
+### For Manual Releases (Fallback):
+- [ ] Update versions in both `pyproject.toml` files
+- [ ] Clean previous builds (`rm -rf */dist/ */build/`)
+- [ ] Build packages (`python -m build diffused/` and `python -m build diffusedcli/`)
 - [ ] Test on Test PyPI
 - [ ] Verify installation and functionality
 - [ ] Publish to production PyPI
