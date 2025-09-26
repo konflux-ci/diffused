@@ -66,9 +66,21 @@ def format_vulnerabilities_list(vulnerabilities_list: list, file: IO[str] | None
 
 # general command configs
 @click.group(invoke_without_command=True)
+@click.option(
+    "-s",
+    "--scanner",
+    type=click.Choice(["acs", "trivy"], case_sensitive=False),
+    default="trivy",
+    help="Scanner to use for vulnerability detection (default=trivy).",
+    required=False,
+)
 @click.pass_context
-def cli(ctx: click.core.Context) -> None:
+def cli(ctx: click.core.Context, scanner: str) -> None:
     """A CLI tool to interact with Diffused."""
+    # Store scanner in context for subcommands
+    ctx.ensure_object(dict)
+    ctx.obj["scanner"] = scanner
+
     # if no subcommand is invoked, display help and exit
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
@@ -114,18 +126,23 @@ def cli(ctx: click.core.Context) -> None:
     help="File to write the output to.",
     required=False,
 )
-@click.option(
-    "-s",
-    "--scanner",
-    type=click.Choice(["trivy"], case_sensitive=False),
-    default="trivy",
-    help="Scanner to use for vulnerability detection (only trivy is supported for SBOM scanning).",
-    required=False,
-)
+@click.pass_context
 def sbom_diff(
-    previous_sbom: str, next_sbom: str, all_info: bool, output: str, file: IO[str], scanner: str
+    ctx: click.core.Context,
+    previous_sbom: str,
+    next_sbom: str,
+    all_info: bool,
+    output: str,
+    file: IO[str],
 ):
     """Show the vulnerability diff between two SBOMs."""
+    scanner = ctx.obj["scanner"]
+
+    # Only trivy is supported for SBOM scanning
+    if scanner != "trivy":
+        click.echo(f"Error: Only 'trivy' scanner is supported for SBOM scanning, got '{scanner}'")
+        exit(1)
+
     if not os.path.isfile(previous_sbom):
         click.echo(f"Could not find {previous_sbom}")
         exit(1)
@@ -188,18 +205,18 @@ def sbom_diff(
     help="File to write the output to.",
     required=False,
 )
-@click.option(
-    "-s",
-    "--scanner",
-    type=click.Choice(["acs", "trivy"], case_sensitive=False),
-    default="trivy",
-    help="Scanner to use for vulnerability detection (default=trivy).",
-    required=False,
-)
+@click.pass_context
 def image_diff(
-    previous_image: str, next_image: str, all_info: bool, output: str, file: IO[str], scanner: str
+    ctx: click.core.Context,
+    previous_image: str,
+    next_image: str,
+    all_info: bool,
+    output: str,
+    file: IO[str],
 ):
     """Show the vulnerability diff between two container images."""
+    scanner = ctx.obj["scanner"]
+
     if os.path.isfile(previous_image) or os.path.isfile(next_image):
         click.echo(
             "image-diff: The 'previous-image' or 'next-image' option seems to be a file. Please "
