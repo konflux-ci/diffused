@@ -1,4 +1,4 @@
-"""Shared fixtures for scanner tests."""
+"""Shared fixtures for all library tests."""
 
 from unittest.mock import patch
 
@@ -30,6 +30,30 @@ def test_sbom_path():
 def test_output_path():
     """Fixture to provide a consistent test output path."""
     return "/path/to/output.json"
+
+
+@pytest.fixture
+def test_previous_sbom_path():
+    """Fixture to provide a consistent test previous SBOM path."""
+    return "/path/to/previous.json"
+
+
+@pytest.fixture
+def test_next_sbom_path():
+    """Fixture to provide a consistent test next SBOM path."""
+    return "/path/to/next.json"
+
+
+@pytest.fixture
+def test_previous_image():
+    """Fixture to provide a consistent test previous image name."""
+    return "previous:latest"
+
+
+@pytest.fixture
+def test_next_image():
+    """Fixture to provide a consistent test next image name."""
+    return "next:latest"
 
 
 @pytest.fixture

@@ -4,39 +4,11 @@ import json
 import sys
 from unittest.mock import MagicMock, patch
 
-import pytest
-from click.testing import CliRunner
-
 # Mock the diffused module before importing the CLI
 sys.modules["diffused"] = MagicMock()
 sys.modules["diffused.differ"] = MagicMock()
 
 from diffusedcli.cli import cli, format_vulnerabilities_list, format_vulnerabilities_table
-
-
-@pytest.fixture
-def runner():
-    """Create a Click test runner."""
-    return CliRunner()
-
-
-@pytest.fixture
-def sample_vulnerabilities_list():
-    """Sample vulnerability list for testing."""
-    return ["CVE-2024-1234", "CVE-2024-5678", "CVE-2024-9999"]
-
-
-@pytest.fixture
-def sample_vulnerabilities_all_info():
-    """Sample vulnerability data with all info for testing."""
-    return {
-        "CVE-2024-1234": [
-            {"package1": {"previous_version": "1.0.0", "new_version": "1.1.0", "removed": False}}
-        ],
-        "CVE-2024-5678": [
-            {"package2": {"previous_version": "2.0.0", "new_version": "", "removed": True}}
-        ],
-    }
 
 
 def test_cli_no_command(runner):
@@ -50,7 +22,13 @@ def test_cli_no_command(runner):
 @patch("diffusedcli.cli.VulnerabilityDiffer")
 @patch("diffusedcli.cli.format_vulnerabilities_list")
 def test_sbom_diff_basic(
-    mock_format_list, mock_differ, mock_isfile, runner, sample_vulnerabilities_list
+    mock_format_list,
+    mock_differ,
+    mock_isfile,
+    runner,
+    sample_vulnerabilities_list,
+    test_previous_sbom_path,
+    test_next_sbom_path,
 ):
     """Test basic sbom_diff command."""
     # setup mocks
@@ -60,14 +38,14 @@ def test_sbom_diff_basic(
     mock_differ.return_value = mock_differ_instance
 
     result = runner.invoke(
-        cli, ["sbom-diff", "-p", "/path/to/prev.json", "-n", "/path/to/next.json"]
+        cli, ["sbom-diff", "-p", test_previous_sbom_path, "-n", test_next_sbom_path]
     )
 
     assert result.exit_code == 0
-    mock_isfile.assert_any_call("/path/to/prev.json")
-    mock_isfile.assert_any_call("/path/to/next.json")
+    mock_isfile.assert_any_call(test_previous_sbom_path)
+    mock_isfile.assert_any_call(test_next_sbom_path)
     mock_differ.assert_called_once_with(
-        previous_sbom="/path/to/prev.json", next_sbom="/path/to/next.json", scanner="trivy"
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path, scanner="trivy"
     )
     # check that format_vulnerabilities_list was called with data and a file object
     assert mock_format_list.call_count == 1
@@ -80,7 +58,13 @@ def test_sbom_diff_basic(
 @patch("diffusedcli.cli.VulnerabilityDiffer")
 @patch("diffusedcli.cli.format_vulnerabilities_table")
 def test_sbom_diff_all_info(
-    mock_format_table, mock_differ, mock_isfile, runner, sample_vulnerabilities_all_info
+    mock_format_table,
+    mock_differ,
+    mock_isfile,
+    runner,
+    sample_vulnerabilities_all_info,
+    test_previous_sbom_path,
+    test_next_sbom_path,
 ):
     """Test sbom_diff command with all info flag."""
     # setup mocks
@@ -90,7 +74,7 @@ def test_sbom_diff_all_info(
     mock_differ.return_value = mock_differ_instance
 
     result = runner.invoke(
-        cli, ["sbom-diff", "-p", "/path/to/prev.json", "-n", "/path/to/next.json", "-a"]
+        cli, ["sbom-diff", "-p", test_previous_sbom_path, "-n", test_next_sbom_path, "-a"]
     )
 
     assert result.exit_code == 0
@@ -103,7 +87,14 @@ def test_sbom_diff_all_info(
 
 @patch("diffusedcli.cli.os.path.isfile")
 @patch("diffusedcli.cli.VulnerabilityDiffer")
-def test_sbom_diff_json_output(mock_differ, mock_isfile, runner, sample_vulnerabilities_list):
+def test_sbom_diff_json_output(
+    mock_differ,
+    mock_isfile,
+    runner,
+    sample_vulnerabilities_list,
+    test_previous_sbom_path,
+    test_next_sbom_path,
+):
     """Test sbom_diff command with JSON output."""
     # setup mocks
     mock_isfile.return_value = True
@@ -112,7 +103,7 @@ def test_sbom_diff_json_output(mock_differ, mock_isfile, runner, sample_vulnerab
     mock_differ.return_value = mock_differ_instance
 
     result = runner.invoke(
-        cli, ["sbom-diff", "-p", "/path/to/prev.json", "-n", "/path/to/next.json", "-o", "json"]
+        cli, ["sbom-diff", "-p", test_previous_sbom_path, "-n", test_next_sbom_path, "-o", "json"]
     )
 
     assert result.exit_code == 0
@@ -123,7 +114,14 @@ def test_sbom_diff_json_output(mock_differ, mock_isfile, runner, sample_vulnerab
 
 @patch("diffusedcli.cli.os.path.isfile")
 @patch("diffusedcli.cli.VulnerabilityDiffer")
-def test_sbom_diff_json_all_info(mock_differ, mock_isfile, runner, sample_vulnerabilities_all_info):
+def test_sbom_diff_json_all_info(
+    mock_differ,
+    mock_isfile,
+    runner,
+    sample_vulnerabilities_all_info,
+    test_previous_sbom_path,
+    test_next_sbom_path,
+):
     """Test sbom_diff command with JSON output and all info."""
     # setup mocks
     mock_isfile.return_value = True
@@ -133,7 +131,7 @@ def test_sbom_diff_json_all_info(mock_differ, mock_isfile, runner, sample_vulner
 
     result = runner.invoke(
         cli,
-        ["sbom-diff", "-p", "/path/to/prev.json", "-n", "/path/to/next.json", "-a", "-o", "json"],
+        ["sbom-diff", "-p", test_previous_sbom_path, "-n", test_next_sbom_path, "-a", "-o", "json"],
     )
 
     assert result.exit_code == 0
@@ -143,45 +141,56 @@ def test_sbom_diff_json_all_info(mock_differ, mock_isfile, runner, sample_vulner
 
 
 @patch("diffusedcli.cli.os.path.isfile")
-def test_sbom_diff_file_not_found_previous(mock_isfile, runner):
+def test_sbom_diff_file_not_found_previous(
+    mock_isfile, runner, test_previous_sbom_path, test_next_sbom_path
+):
     """Test sbom_diff with non-existent previous file."""
-    mock_isfile.side_effect = lambda path: path != "/path/to/prev.json"
+    mock_isfile.side_effect = lambda path: path != test_previous_sbom_path
 
     result = runner.invoke(
-        cli, ["sbom-diff", "-p", "/path/to/prev.json", "-n", "/path/to/next.json"]
+        cli, ["sbom-diff", "-p", test_previous_sbom_path, "-n", test_next_sbom_path]
     )
 
     assert result.exit_code == 1
-    assert "Could not find /path/to/prev.json" in result.output
+    assert f"Could not find {test_previous_sbom_path}" in result.output
 
 
 @patch("diffusedcli.cli.os.path.isfile")
-def test_sbom_diff_file_not_found_next(mock_isfile, runner):
+def test_sbom_diff_file_not_found_next(
+    mock_isfile, runner, test_previous_sbom_path, test_next_sbom_path
+):
     """Test sbom_diff with non-existent next file."""
-    mock_isfile.side_effect = lambda path: path != "/path/to/next.json"
+    mock_isfile.side_effect = lambda path: path != test_next_sbom_path
 
     result = runner.invoke(
-        cli, ["sbom-diff", "-p", "/path/to/prev.json", "-n", "/path/to/next.json"]
+        cli, ["sbom-diff", "-p", test_previous_sbom_path, "-n", test_next_sbom_path]
     )
 
     assert result.exit_code == 1
-    assert "Could not find /path/to/next.json" in result.output
+    assert f"Could not find {test_next_sbom_path}" in result.output
 
 
 @patch("diffusedcli.cli.VulnerabilityDiffer")
 @patch("diffusedcli.cli.format_vulnerabilities_list")
-def test_image_diff_basic(mock_format_list, mock_differ, runner, sample_vulnerabilities_list):
+def test_image_diff_basic(
+    mock_format_list,
+    mock_differ,
+    runner,
+    sample_vulnerabilities_list,
+    test_previous_image,
+    test_next_image,
+):
     """Test basic image_diff command."""
     # setup mocks
     mock_differ_instance = MagicMock()
     mock_differ_instance.vulnerabilities_diff = sample_vulnerabilities_list
     mock_differ.return_value = mock_differ_instance
 
-    result = runner.invoke(cli, ["image-diff", "-p", "prev:latest", "-n", "next:latest"])
+    result = runner.invoke(cli, ["image-diff", "-p", test_previous_image, "-n", test_next_image])
 
     assert result.exit_code == 0
     mock_differ.assert_called_once_with(
-        previous_image="prev:latest", next_image="next:latest", scanner="trivy"
+        previous_image=test_previous_image, next_image=test_next_image, scanner="trivy"
     )
     # check that format_vulnerabilities_list was called with data and a file object
     assert mock_format_list.call_count == 1
@@ -193,7 +202,12 @@ def test_image_diff_basic(mock_format_list, mock_differ, runner, sample_vulnerab
 @patch("diffusedcli.cli.VulnerabilityDiffer")
 @patch("diffusedcli.cli.format_vulnerabilities_table")
 def test_image_diff_all_info(
-    mock_format_table, mock_differ, runner, sample_vulnerabilities_all_info
+    mock_format_table,
+    mock_differ,
+    runner,
+    sample_vulnerabilities_all_info,
+    test_previous_image,
+    test_next_image,
 ):
     """Test image_diff command with all info flag."""
     # setup mocks
@@ -201,7 +215,9 @@ def test_image_diff_all_info(
     mock_differ_instance.vulnerabilities_diff_all_info = sample_vulnerabilities_all_info
     mock_differ.return_value = mock_differ_instance
 
-    result = runner.invoke(cli, ["image-diff", "-p", "prev:latest", "-n", "next:latest", "-a"])
+    result = runner.invoke(
+        cli, ["image-diff", "-p", test_previous_image, "-n", test_next_image, "-a"]
+    )
 
     assert result.exit_code == 0
     # check that format_vulnerabilities_table was called with data and a file object
@@ -212,7 +228,9 @@ def test_image_diff_all_info(
 
 
 @patch("diffusedcli.cli.VulnerabilityDiffer")
-def test_image_diff_json_output(mock_differ, runner, sample_vulnerabilities_list):
+def test_image_diff_json_output(
+    mock_differ, runner, sample_vulnerabilities_list, test_previous_image, test_next_image
+):
     """Test image_diff command with JSON output."""
     # setup mocks
     mock_differ_instance = MagicMock()
@@ -220,7 +238,7 @@ def test_image_diff_json_output(mock_differ, runner, sample_vulnerabilities_list
     mock_differ.return_value = mock_differ_instance
 
     result = runner.invoke(
-        cli, ["image-diff", "-p", "prev:latest", "-n", "next:latest", "-o", "json"]
+        cli, ["image-diff", "-p", test_previous_image, "-n", test_next_image, "-o", "json"]
     )
 
     assert result.exit_code == 0
@@ -230,7 +248,9 @@ def test_image_diff_json_output(mock_differ, runner, sample_vulnerabilities_list
 
 
 @patch("diffusedcli.cli.VulnerabilityDiffer")
-def test_image_diff_json_all_info(mock_differ, runner, sample_vulnerabilities_all_info):
+def test_image_diff_json_all_info(
+    mock_differ, runner, sample_vulnerabilities_all_info, test_previous_image, test_next_image
+):
     """Test image_diff command with JSON output and all info."""
     # setup mocks
     mock_differ_instance = MagicMock()
@@ -238,7 +258,7 @@ def test_image_diff_json_all_info(mock_differ, runner, sample_vulnerabilities_al
     mock_differ.return_value = mock_differ_instance
 
     result = runner.invoke(
-        cli, ["image-diff", "-p", "prev:latest", "-n", "next:latest", "-a", "-o", "json"]
+        cli, ["image-diff", "-p", test_previous_image, "-n", test_next_image, "-a", "-o", "json"]
     )
 
     assert result.exit_code == 0
@@ -262,11 +282,11 @@ def test_image_diff_missing_required_options(runner):
 
 
 @patch("diffusedcli.cli.os.path.isfile")
-def test_image_diff_previous_image_is_file(mock_isfile, runner):
+def test_image_diff_previous_image_is_file(mock_isfile, runner, test_next_image):
     """Test image_diff when previous image argument is a file path."""
     mock_isfile.side_effect = lambda path: path == "prev.json"
 
-    result = runner.invoke(cli, ["image-diff", "-p", "prev.json", "-n", "next:latest"])
+    result = runner.invoke(cli, ["image-diff", "-p", "prev.json", "-n", test_next_image])
 
     assert result.exit_code == 1
     assert "seems to be a file" in result.output
@@ -274,11 +294,11 @@ def test_image_diff_previous_image_is_file(mock_isfile, runner):
 
 
 @patch("diffusedcli.cli.os.path.isfile")
-def test_image_diff_next_image_is_file(mock_isfile, runner):
+def test_image_diff_next_image_is_file(mock_isfile, runner, test_previous_image):
     """Test image_diff when next image argument is a file path."""
     mock_isfile.side_effect = lambda path: path == "next.json"
 
-    result = runner.invoke(cli, ["image-diff", "-p", "prev:latest", "-n", "next.json"])
+    result = runner.invoke(cli, ["image-diff", "-p", test_previous_image, "-n", "next.json"])
 
     assert result.exit_code == 1
     assert "seems to be a file" in result.output
@@ -297,10 +317,11 @@ def test_image_diff_both_images_are_files(mock_isfile, runner):
     assert "use the sbom-diff command for SBOM files" in result.output
 
 
-def test_invalid_output_format(runner):
+def test_invalid_output_format(runner, test_previous_sbom_path, test_next_sbom_path):
     """Test CLI with invalid output format."""
     result = runner.invoke(
-        cli, ["sbom-diff", "-p", "/path/to/prev.json", "-n", "/path/to/next.json", "-o", "invalid"]
+        cli,
+        ["sbom-diff", "-p", test_previous_sbom_path, "-n", test_next_sbom_path, "-o", "invalid"],
     )
     assert result.exit_code != 0
     assert "Invalid value" in result.output
@@ -356,7 +377,7 @@ def test_format_vulnerabilities_table(mock_table, mock_console, sample_vulnerabi
     mock_console_instance.print.assert_called_once_with(mock_table_instance)
 
 
-def test_sbom_diff_case_insensitive_output(runner):
+def test_sbom_diff_case_insensitive_output(runner, test_previous_sbom_path, test_next_sbom_path):
     """Test that output format option is case insensitive."""
     with (
         patch("diffusedcli.cli.os.path.isfile", return_value=True),
@@ -369,7 +390,8 @@ def test_sbom_diff_case_insensitive_output(runner):
 
         # test uppercase JSON
         result = runner.invoke(
-            cli, ["sbom-diff", "-p", "/path/to/prev.json", "-n", "/path/to/next.json", "-o", "JSON"]
+            cli,
+            ["sbom-diff", "-p", test_previous_sbom_path, "-n", test_next_sbom_path, "-o", "JSON"],
         )
 
         assert result.exit_code == 0
@@ -377,7 +399,9 @@ def test_sbom_diff_case_insensitive_output(runner):
         assert output_data == ["CVE-2024-1234"]
 
 
-def test_sbom_diff_with_trivy_scanner(runner, sample_vulnerabilities_list):
+def test_sbom_diff_with_trivy_scanner(
+    runner, sample_vulnerabilities_list, test_previous_sbom_path, test_next_sbom_path
+):
     """Test sbom-diff command with trivy scanner (explicit)."""
     with (
         patch("diffusedcli.cli.os.path.isfile", return_value=True),
@@ -392,9 +416,9 @@ def test_sbom_diff_with_trivy_scanner(runner, sample_vulnerabilities_list):
             [
                 "sbom-diff",
                 "-p",
-                "/path/to/prev.json",
+                test_previous_sbom_path,
                 "-n",
-                "/path/to/next.json",
+                test_next_sbom_path,
                 "--scanner",
                 "trivy",
             ],
@@ -402,22 +426,22 @@ def test_sbom_diff_with_trivy_scanner(runner, sample_vulnerabilities_list):
 
         assert result.exit_code == 0
         mock_differ.assert_called_once_with(
-            previous_sbom="/path/to/prev.json", next_sbom="/path/to/next.json", scanner="trivy"
+            previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path, scanner="trivy"
         )
 
 
-def test_sbom_diff_with_acs_scanner_error(runner):
+def test_sbom_diff_with_acs_scanner_error(runner, test_previous_sbom_path, test_next_sbom_path):
     """Test sbom-diff command fails when ACS scanner is used."""
     result = runner.invoke(
         cli,
-        ["sbom-diff", "-p", "/path/to/prev.json", "-n", "/path/to/next.json", "--scanner", "acs"],
+        ["sbom-diff", "-p", test_previous_sbom_path, "-n", test_next_sbom_path, "--scanner", "acs"],
     )
 
     assert result.exit_code == 2
     assert "Invalid value for '-s' / '--scanner': 'acs' is not 'trivy'" in result.output
 
 
-def test_sbom_diff_scanner_case_insensitive(runner):
+def test_sbom_diff_scanner_case_insensitive(runner, test_previous_sbom_path, test_next_sbom_path):
     """Test that scanner option is case insensitive for sbom-diff."""
     with (
         patch("diffusedcli.cli.os.path.isfile", return_value=True),
@@ -433,9 +457,9 @@ def test_sbom_diff_scanner_case_insensitive(runner):
             [
                 "sbom-diff",
                 "-p",
-                "/path/to/prev.json",
+                test_previous_sbom_path,
                 "-n",
-                "/path/to/next.json",
+                test_next_sbom_path,
                 "--scanner",
                 "TRIVY",
             ],
@@ -443,7 +467,7 @@ def test_sbom_diff_scanner_case_insensitive(runner):
 
         assert result.exit_code == 0
         mock_differ.assert_called_once_with(
-            previous_sbom="/path/to/prev.json", next_sbom="/path/to/next.json", scanner="trivy"
+            previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path, scanner="trivy"
         )
 
 
@@ -461,7 +485,7 @@ def test_cli_help_commands(runner):
 
 
 @patch("diffusedcli.cli.VulnerabilityDiffer")
-def test_integration_all_options(mock_differ, runner):
+def test_integration_all_options(mock_differ, runner, test_previous_sbom_path, test_next_sbom_path):
     """Test commands with all options combined."""
     mock_differ_instance = MagicMock()
     mock_differ_instance.vulnerabilities_diff_all_info = {"CVE-2024-1234": []}
@@ -473,9 +497,9 @@ def test_integration_all_options(mock_differ, runner):
             [
                 "sbom-diff",
                 "--previous-sbom",
-                "/path/to/prev.json",
+                test_previous_sbom_path,
                 "--next-sbom",
-                "/path/to/next.json",
+                test_next_sbom_path,
                 "--all-info",
                 "--output",
                 "json",
@@ -488,43 +512,48 @@ def test_integration_all_options(mock_differ, runner):
 
 
 @patch("diffusedcli.cli.VulnerabilityDiffer")
-def test_image_diff_with_acs_scanner(mock_differ, runner, sample_vulnerabilities_list):
+def test_image_diff_with_acs_scanner(
+    mock_differ, runner, sample_vulnerabilities_list, test_previous_image, test_next_image
+):
     """Test image_diff command with ACS scanner."""
     mock_differ_instance = MagicMock()
     mock_differ_instance.vulnerabilities_diff = sample_vulnerabilities_list
     mock_differ.return_value = mock_differ_instance
 
     result = runner.invoke(
-        cli, ["image-diff", "-p", "prev:latest", "-n", "next:latest", "--scanner", "acs"]
+        cli, ["image-diff", "-p", test_previous_image, "-n", test_next_image, "--scanner", "acs"]
     )
 
     assert result.exit_code == 0
     mock_differ.assert_called_once_with(
-        previous_image="prev:latest", next_image="next:latest", scanner="acs"
+        previous_image=test_previous_image, next_image=test_next_image, scanner="acs"
     )
 
 
 @patch("diffusedcli.cli.VulnerabilityDiffer")
-def test_image_diff_with_trivy_scanner(mock_differ, runner, sample_vulnerabilities_list):
+def test_image_diff_with_trivy_scanner(
+    mock_differ, runner, sample_vulnerabilities_list, test_previous_image, test_next_image
+):
     """Test image_diff command with Trivy scanner (explicit)."""
     mock_differ_instance = MagicMock()
     mock_differ_instance.vulnerabilities_diff = sample_vulnerabilities_list
     mock_differ.return_value = mock_differ_instance
 
     result = runner.invoke(
-        cli, ["image-diff", "-p", "prev:latest", "-n", "next:latest", "--scanner", "trivy"]
+        cli, ["image-diff", "-p", test_previous_image, "-n", test_next_image, "--scanner", "trivy"]
     )
 
     assert result.exit_code == 0
     mock_differ.assert_called_once_with(
-        previous_image="prev:latest", next_image="next:latest", scanner="trivy"
+        previous_image=test_previous_image, next_image=test_next_image, scanner="trivy"
     )
 
 
-def test_image_diff_invalid_scanner(runner):
+def test_image_diff_invalid_scanner(runner, test_previous_image, test_next_image):
     """Test image_diff command with invalid scanner."""
     result = runner.invoke(
-        cli, ["image-diff", "-p", "prev:latest", "-n", "next:latest", "--scanner", "invalid"]
+        cli,
+        ["image-diff", "-p", test_previous_image, "-n", test_next_image, "--scanner", "invalid"],
     )
 
     assert result.exit_code != 0
@@ -534,7 +563,7 @@ def test_image_diff_invalid_scanner(runner):
     assert "acs" in result.output
 
 
-def test_image_diff_scanner_case_insensitive(runner):
+def test_image_diff_scanner_case_insensitive(runner, test_previous_image, test_next_image):
     """Test that scanner option is case insensitive."""
     with patch("diffusedcli.cli.VulnerabilityDiffer") as mock_differ:
         mock_differ_instance = MagicMock()
@@ -543,12 +572,13 @@ def test_image_diff_scanner_case_insensitive(runner):
 
         # test uppercase ACS
         result = runner.invoke(
-            cli, ["image-diff", "-p", "prev:latest", "-n", "next:latest", "--scanner", "ACS"]
+            cli,
+            ["image-diff", "-p", test_previous_image, "-n", test_next_image, "--scanner", "ACS"],
         )
 
         assert result.exit_code == 0
         mock_differ.assert_called_once_with(
-            previous_image="prev:latest", next_image="next:latest", scanner="acs"
+            previous_image=test_previous_image, next_image=test_next_image, scanner="acs"
         )
 
 
