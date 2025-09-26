@@ -414,13 +414,13 @@ def test_sbom_diff_with_trivy_scanner(
         result = runner.invoke(
             cli,
             [
+                "--scanner",
+                "trivy",
                 "sbom-diff",
                 "-p",
                 test_previous_sbom_path,
                 "-n",
                 test_next_sbom_path,
-                "--scanner",
-                "trivy",
             ],
         )
 
@@ -434,11 +434,11 @@ def test_sbom_diff_with_acs_scanner_error(runner, test_previous_sbom_path, test_
     """Test sbom-diff command fails when ACS scanner is used."""
     result = runner.invoke(
         cli,
-        ["sbom-diff", "-p", test_previous_sbom_path, "-n", test_next_sbom_path, "--scanner", "acs"],
+        ["--scanner", "acs", "sbom-diff", "-p", test_previous_sbom_path, "-n", test_next_sbom_path],
     )
 
-    assert result.exit_code == 2
-    assert "Invalid value for '-s' / '--scanner': 'acs' is not 'trivy'" in result.output
+    assert result.exit_code == 1
+    assert "Error: Only 'trivy' scanner is supported for SBOM scanning, got 'acs'" in result.output
 
 
 def test_sbom_diff_scanner_case_insensitive(runner, test_previous_sbom_path, test_next_sbom_path):
@@ -455,13 +455,13 @@ def test_sbom_diff_scanner_case_insensitive(runner, test_previous_sbom_path, tes
         result = runner.invoke(
             cli,
             [
+                "--scanner",
+                "TRIVY",
                 "sbom-diff",
                 "-p",
                 test_previous_sbom_path,
                 "-n",
                 test_next_sbom_path,
-                "--scanner",
-                "TRIVY",
             ],
         )
 
@@ -521,7 +521,7 @@ def test_image_diff_with_acs_scanner(
     mock_differ.return_value = mock_differ_instance
 
     result = runner.invoke(
-        cli, ["image-diff", "-p", test_previous_image, "-n", test_next_image, "--scanner", "acs"]
+        cli, ["--scanner", "acs", "image-diff", "-p", test_previous_image, "-n", test_next_image]
     )
 
     assert result.exit_code == 0
@@ -540,7 +540,7 @@ def test_image_diff_with_trivy_scanner(
     mock_differ.return_value = mock_differ_instance
 
     result = runner.invoke(
-        cli, ["image-diff", "-p", test_previous_image, "-n", test_next_image, "--scanner", "trivy"]
+        cli, ["--scanner", "trivy", "image-diff", "-p", test_previous_image, "-n", test_next_image]
     )
 
     assert result.exit_code == 0
@@ -553,7 +553,7 @@ def test_image_diff_invalid_scanner(runner, test_previous_image, test_next_image
     """Test image_diff command with invalid scanner."""
     result = runner.invoke(
         cli,
-        ["image-diff", "-p", test_previous_image, "-n", test_next_image, "--scanner", "invalid"],
+        ["--scanner", "invalid", "image-diff", "-p", test_previous_image, "-n", test_next_image],
     )
 
     assert result.exit_code != 0
@@ -573,7 +573,7 @@ def test_image_diff_scanner_case_insensitive(runner, test_previous_image, test_n
         # test uppercase ACS
         result = runner.invoke(
             cli,
-            ["image-diff", "-p", test_previous_image, "-n", test_next_image, "--scanner", "ACS"],
+            ["--scanner", "ACS", "image-diff", "-p", test_previous_image, "-n", test_next_image],
         )
 
         assert result.exit_code == 0
