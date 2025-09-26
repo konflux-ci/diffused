@@ -42,6 +42,9 @@ pip install diffusedcli
 # Basic vulnerability diff between two container images
 diffused image-diff -p ubuntu:20.04 -n ubuntu:22.04
 
+# Use ACS scanner
+diffused --scanner acs image-diff -p nginx:1.20 -n nginx:1.21
+
 # Get detailed information about each vulnerability
 diffused image-diff -p nginx:1.20 -n nginx:1.21 --all-info
 
@@ -77,6 +80,7 @@ For more information on commands and options, use the `--help` option.
 
 | Option | Short | Description | Default |
 |--------|-------|-------------|---------|
+| `--scanner` | `-s` | Scanner to use (`acs`, `trivy`) | `trivy` |
 | `--all-info` | `-a` | Show detailed vulnerability information | `False` |
 | `--output` | `-o` | Output format (`rich`, `json`) | `rich` |
 | `--file` | `-f` | Output file (use `-` for stdout) | `-` |

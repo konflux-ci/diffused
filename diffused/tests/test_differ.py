@@ -1,7 +1,6 @@
 """Unit tests for VulnerabilityDiffer class."""
 
 import json
-import tempfile
 from collections import defaultdict
 from unittest.mock import MagicMock, mock_open, patch
 
@@ -11,14 +10,14 @@ from diffused.differ import VulnerabilityDiffer
 from diffused.scanners.models import Package
 
 
-def test_init_with_sbom_paths():
+def test_init_with_sbom_paths(test_previous_sbom_path, test_next_sbom_path):
     """Test VulnerabilityDiffer initialization with SBOM paths."""
     differ = VulnerabilityDiffer(
-        previous_sbom="/path/to/previous.json", next_sbom="/path/to/next.json"
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
     )
 
-    assert differ.previous_release.sbom == "/path/to/previous.json"
-    assert differ.next_release.sbom == "/path/to/next.json"
+    assert differ.previous_release.sbom == test_previous_sbom_path
+    assert differ.next_release.sbom == test_next_sbom_path
     assert differ.previous_release.image is None
     assert differ.next_release.image is None
     assert differ._vulnerabilities_diff == []
@@ -26,22 +25,22 @@ def test_init_with_sbom_paths():
     assert differ.error == ""
 
 
-def test_init_with_images():
+def test_init_with_images(test_previous_image, test_next_image):
     """Test VulnerabilityDiffer initialization with container images."""
-    differ = VulnerabilityDiffer(previous_image="previous:latest", next_image="next:latest")
+    differ = VulnerabilityDiffer(previous_image=test_previous_image, next_image=test_next_image)
 
-    assert differ.previous_release.image == "previous:latest"
-    assert differ.next_release.image == "next:latest"
+    assert differ.previous_release.image == test_previous_image
+    assert differ.next_release.image == test_next_image
     assert differ.previous_release.sbom is None
     assert differ.next_release.sbom is None
 
 
-def test_init_with_mixed_parameters():
+def test_init_with_mixed_parameters(test_previous_sbom_path, test_next_image):
     """Test VulnerabilityDiffer initialization with mixed parameters."""
-    differ = VulnerabilityDiffer(previous_sbom="/path/to/previous.json", next_image="next:latest")
+    differ = VulnerabilityDiffer(previous_sbom=test_previous_sbom_path, next_image=test_next_image)
 
-    assert differ.previous_release.sbom == "/path/to/previous.json"
-    assert differ.next_release.image == "next:latest"
+    assert differ.previous_release.sbom == test_previous_sbom_path
+    assert differ.next_release.image == test_next_image
     assert differ.previous_release.image is None
     assert differ.next_release.sbom is None
 
@@ -77,10 +76,10 @@ def test_retrieve_sboms_success(mock_join, mock_temp_dir):
     )
 
 
-def test_retrieve_sboms_no_images():
+def test_retrieve_sboms_no_images(test_previous_sbom_path, test_next_sbom_path):
     """Test retrieve_sboms when no images are set."""
     differ = VulnerabilityDiffer(
-        previous_sbom="/path/to/previous.json", next_sbom="/path/to/next.json"
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
     )
 
     # mock the retrieve_sbom methods
@@ -95,12 +94,12 @@ def test_retrieve_sboms_no_images():
 
 
 @patch("diffused.differ.tempfile.TemporaryDirectory")
-def test_retrieve_sboms_partial_sboms(mock_temp_dir):
+def test_retrieve_sboms_partial_sboms(mock_temp_dir, test_previous_image, test_next_image):
     """Test retrieve_sboms when one SBOM already exists."""
     mock_temp_dir.return_value = MagicMock()
     mock_temp_dir.return_value.name = "/tmp/diffused-test"
 
-    differ = VulnerabilityDiffer(previous_image="previous:latest", next_image="next:latest")
+    differ = VulnerabilityDiffer(previous_image=test_previous_image, next_image=test_next_image)
 
     # set one SBOM as already existing
     differ.previous_release.sbom = "/existing/previous.json"
@@ -118,9 +117,9 @@ def test_retrieve_sboms_partial_sboms(mock_temp_dir):
     differ.next_release.retrieve_sbom.assert_called_once()
 
 
-def test_scan_sboms_with_missing_sboms():
+def test_scan_sboms_with_missing_sboms(test_previous_image, test_next_image):
     """Test scan_sboms when SBOMs are missing."""
-    differ = VulnerabilityDiffer(previous_image="previous:latest", next_image="next:latest")
+    differ = VulnerabilityDiffer(previous_image=test_previous_image, next_image=test_next_image)
 
     # mock dependencies
     differ.retrieve_sboms = MagicMock()
@@ -135,10 +134,10 @@ def test_scan_sboms_with_missing_sboms():
     differ.next_release.scan_sbom.assert_called_once()
 
 
-def test_scan_sboms_with_existing_results():
+def test_scan_sboms_with_existing_results(test_previous_sbom_path, test_next_sbom_path):
     """Test scan_sboms when raw results already exist."""
     differ = VulnerabilityDiffer(
-        previous_sbom="/path/to/previous.json", next_sbom="/path/to/next.json"
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
     )
 
     # set raw results as already existing
@@ -156,10 +155,10 @@ def test_scan_sboms_with_existing_results():
     differ.next_release.scan_sbom.assert_not_called()
 
 
-def test_process_results_calls_scan_sboms():
+def test_process_results_calls_scan_sboms(test_previous_sbom_path, test_next_sbom_path):
     """Test process_results calls scan_sboms when needed."""
     differ = VulnerabilityDiffer(
-        previous_sbom="/path/to/previous.json", next_sbom="/path/to/next.json"
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
     )
 
     # mock dependencies
@@ -174,10 +173,12 @@ def test_process_results_calls_scan_sboms():
     differ.next_release.process_result.assert_called_once()
 
 
-def test_process_results_with_existing_processed_results():
+def test_process_results_with_existing_processed_results(
+    test_previous_sbom_path, test_next_sbom_path
+):
     """Test process_results when processed results already exist."""
     differ = VulnerabilityDiffer(
-        previous_sbom="/path/to/previous.json", next_sbom="/path/to/next.json"
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
     )
 
     # set processed results as already existing
@@ -199,10 +200,10 @@ def test_process_results_with_existing_processed_results():
     differ.next_release.process_result.assert_not_called()
 
 
-def test_diff_vulnerabilities():
+def test_diff_vulnerabilities(test_previous_sbom_path, test_next_sbom_path):
     """Test diff_vulnerabilities method."""
     differ = VulnerabilityDiffer(
-        previous_sbom="/path/to/previous.json", next_sbom="/path/to/next.json"
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
     )
 
     # mock processed results
@@ -237,7 +238,7 @@ def test_diff_vulnerabilities():
     assert len(differ._vulnerabilities_diff) == 1
 
 
-def test_load_sbom():
+def test_load_sbom(test_sbom_path):
     """Test load_sbom static method."""
     test_sbom = {
         "packages": [
@@ -247,15 +248,15 @@ def test_load_sbom():
     }
 
     with patch("builtins.open", mock_open(read_data=json.dumps(test_sbom))):
-        result = VulnerabilityDiffer.load_sbom("/path/to/sbom.json")
+        result = VulnerabilityDiffer.load_sbom(test_sbom_path)
 
     assert result == test_sbom
 
 
-def test_generate_additional_info_no_vulnerabilities():
+def test_generate_additional_info_no_vulnerabilities(test_previous_sbom_path, test_next_sbom_path):
     """Test generate_additional_info with no vulnerabilities."""
     differ = VulnerabilityDiffer(
-        previous_sbom="/path/to/previous.json", next_sbom="/path/to/next.json"
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
     )
 
     differ._vulnerabilities_diff = []
@@ -266,10 +267,10 @@ def test_generate_additional_info_no_vulnerabilities():
     assert differ._vulnerabilities_diff_all_info == {}
 
 
-def test_generate_additional_info_no_next_sbom():
+def test_generate_additional_info_no_next_sbom(test_previous_sbom_path, test_next_image):
     """Test generate_additional_info when next SBOM is missing."""
     differ = VulnerabilityDiffer(
-        previous_sbom="/path/to/previous.json", next_image="next:latest"  # no next_sbom set
+        previous_sbom=test_previous_sbom_path, next_image=test_next_image  # no next_sbom set
     )
 
     differ._vulnerabilities_diff = ["CVE-2023-1234"]
@@ -281,10 +282,12 @@ def test_generate_additional_info_no_next_sbom():
     assert differ._vulnerabilities_diff_all_info == {}
 
 
-def test_generate_additional_info_with_vulnerabilities():
+def test_generate_additional_info_with_vulnerabilities(
+    test_previous_sbom_path, test_next_sbom_path
+):
     """Test generate_additional_info with actual vulnerabilities."""
     differ = VulnerabilityDiffer(
-        previous_sbom="/path/to/previous.json", next_sbom="/path/to/next.json"
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
     )
 
     # setup test data
@@ -341,10 +344,10 @@ def test_generate_additional_info_with_vulnerabilities():
     assert package3_info["package3"]["removed"] is True
 
 
-def test_vulnerabilities_diff_property():
+def test_vulnerabilities_diff_property(test_previous_sbom_path, test_next_sbom_path):
     """Test vulnerabilities_diff property."""
     differ = VulnerabilityDiffer(
-        previous_sbom="/path/to/previous.json", next_sbom="/path/to/next.json"
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
     )
 
     # mock diff_vulnerabilities method
@@ -358,10 +361,10 @@ def test_vulnerabilities_diff_property():
     assert result == ["CVE-2023-1234"]
 
 
-def test_vulnerabilities_diff_property_calls_diff():
+def test_vulnerabilities_diff_property_calls_diff(test_previous_sbom_path, test_next_sbom_path):
     """Test vulnerabilities_diff property calls diff when empty."""
     differ = VulnerabilityDiffer(
-        previous_sbom="/path/to/previous.json", next_sbom="/path/to/next.json"
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
     )
 
     # mock diff_vulnerabilities method
@@ -381,10 +384,10 @@ def test_vulnerabilities_diff_property_calls_diff():
     assert result == ["CVE-2023-1234"]
 
 
-def test_vulnerabilities_diff_all_info_property():
+def test_vulnerabilities_diff_all_info_property(test_previous_sbom_path, test_next_sbom_path):
     """Test vulnerabilities_diff_all_info property."""
     differ = VulnerabilityDiffer(
-        previous_sbom="/path/to/previous.json", next_sbom="/path/to/next.json"
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
     )
 
     # mock generate_additional_info method
@@ -398,10 +401,12 @@ def test_vulnerabilities_diff_all_info_property():
     assert result == {"CVE-2023-1234": []}
 
 
-def test_vulnerabilities_diff_all_info_property_calls_generate():
+def test_vulnerabilities_diff_all_info_property_calls_generate(
+    test_previous_sbom_path, test_next_sbom_path
+):
     """Test vulnerabilities_diff_all_info property calls generate when empty."""
     differ = VulnerabilityDiffer(
-        previous_sbom="/path/to/previous.json", next_sbom="/path/to/next.json"
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
     )
 
     # mock generate_additional_info method
@@ -421,10 +426,10 @@ def test_vulnerabilities_diff_all_info_property_calls_generate():
     assert result == {"CVE-2023-1234": []}
 
 
-def test_integration_workflow():
+def test_integration_workflow(test_previous_sbom_path, test_next_sbom_path):
     """Test complete workflow integration."""
     differ = VulnerabilityDiffer(
-        previous_sbom="/path/to/previous.json", next_sbom="/path/to/next.json"
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
     )
 
     # mock processed results directly
@@ -459,31 +464,30 @@ def test_integration_workflow():
     assert package_info["package1"]["removed"] is False
 
 
-def test_init_with_invalid_scanner():
+def test_init_with_invalid_scanner(test_previous_sbom_path, test_next_sbom_path):
     """Test VulnerabilityDiffer initialization with invalid scanner."""
     with pytest.raises(
         ValueError, match="Unsupported scanner: invalid. Supported scanners: \\['acs', 'trivy'\\]"
     ):
         VulnerabilityDiffer(
-            previous_sbom="/path/to/previous.json",
-            next_sbom="/path/to/next.json",
+            previous_sbom=test_previous_sbom_path,
+            next_sbom=test_next_sbom_path,
             scanner="invalid",
         )
 
 
-@patch.dict("os.environ", {"ROX_ENDPOINT": "https://localhost:8443", "ROX_API_TOKEN": "test-token"})
-def test_init_with_valid_scanners():
+def test_init_with_valid_scanners(rox_env, test_previous_sbom_path, test_next_sbom_path):
     """Test VulnerabilityDiffer initialization with valid scanners."""
     # Test with trivy scanner (default)
     differ_trivy = VulnerabilityDiffer(
-        previous_sbom="/path/to/previous.json", next_sbom="/path/to/next.json", scanner="trivy"
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path, scanner="trivy"
     )
-    assert differ_trivy.previous_release.sbom == "/path/to/previous.json"
-    assert differ_trivy.next_release.sbom == "/path/to/next.json"
+    assert differ_trivy.previous_release.sbom == test_previous_sbom_path
+    assert differ_trivy.next_release.sbom == test_next_sbom_path
 
     # Test with acs scanner
     differ_acs = VulnerabilityDiffer(
-        previous_sbom="/path/to/previous.json", next_sbom="/path/to/next.json", scanner="acs"
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path, scanner="acs"
     )
-    assert differ_acs.previous_release.sbom == "/path/to/previous.json"
-    assert differ_acs.next_release.sbom == "/path/to/next.json"
+    assert differ_acs.previous_release.sbom == test_previous_sbom_path
+    assert differ_acs.next_release.sbom == test_next_sbom_path
