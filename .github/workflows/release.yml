@@ -105,6 +105,16 @@ jobs:
       with:
         python-version: '3.12'
 
+    - name: Download library artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: lib-dist
+        path: diffused/dist/
+
+    - name: Install library package from dist
+      run: |
+        pip install diffused/dist/*.whl
+
     - name: Download CLI artifacts
       uses: actions/download-artifact@v4
       with:
