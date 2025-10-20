@@ -69,7 +69,7 @@ pip install -e ./diffusedcli/.[dev]
 tox
 
 # Run black only
-tox -e black
+tox -e py39-black
 
 # Automatically fix black errors
 tox -e black-format

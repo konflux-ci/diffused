@@ -222,7 +222,7 @@ You can manually verify the container is working correctly:
 
 ```bash
 # Check container health
-podman run --rm diffused:latest python3.12 -c "import diffused; print('OK')"
+podman run --rm diffused:latest python3.9 -c "import diffused; print('OK')"
 ```
 
 ### Interactive Debugging

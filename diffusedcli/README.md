@@ -15,8 +15,8 @@ Command-line interface for the Diffused vulnerability scanning and diffing libra
 
 1. **Install the scanner**:
     1. **Trivy**: Follow the [official Trivy installation guide](https://aquasecurity.github.io/trivy/latest/getting-started/installation/)
-    2. **RHACS**: Follow the [official roxctl installation guide](https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.8/html/roxctl_cli/index) 
-2. **Python Environment**: Ensure Python 3.12+ is installed
+    2. **RHACS**: Follow the [official roxctl installation guide](https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.8/html/roxctl_cli/index)
+2. **Python Environment**: Ensure Python 3.9+ is installed
 
 ### From Source
 

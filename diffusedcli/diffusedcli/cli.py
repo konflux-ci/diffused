@@ -2,7 +2,7 @@
 
 import json
 import os
-from typing import IO
+from typing import IO, Optional
 
 import click
 from rich.columns import Columns
@@ -14,7 +14,7 @@ from rich.text import Text
 from diffused.differ import VulnerabilityDiffer
 
 
-def format_vulnerabilities_table(vulnerabilities_data: dict, file: IO[str] | None) -> None:
+def format_vulnerabilities_table(vulnerabilities_data: dict, file: Optional[IO[str]]) -> None:
     """Format vulnerability data as a rich table."""
     console = Console(file=file)
 
@@ -40,7 +40,7 @@ def format_vulnerabilities_table(vulnerabilities_data: dict, file: IO[str] | Non
     console.print(table)
 
 
-def format_vulnerabilities_list(vulnerabilities_list: list, file: IO[str] | None) -> None:
+def format_vulnerabilities_list(vulnerabilities_list: list, file: Optional[IO[str]]) -> None:
     """Format vulnerability list as a rich panel with columns."""
 
     console = Console(file=file)

@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import subprocess
+from typing import Optional
 
 from diffused.scanners.base import BaseScanner
 from diffused.scanners.models import Package
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 class ACSScanner(BaseScanner):
     """ACS scanner class."""
 
-    def __init__(self, sbom: str | None = None, image: str | None = None):
+    def __init__(self, sbom: Optional[str] = None, image: Optional[str] = None):
         super().__init__(sbom, image)
         self._validate_environment()
 
