@@ -24,13 +24,13 @@ class BaseScanner(ABC):
         self.error: str = ""
 
     @abstractmethod
-    def retrieve_sbom(self, output_file: str) -> None:
-        """Retrieves the SBOM from a given target image."""
+    def scan_sbom(self) -> None:
+        """Performs a scan on a given target SBOM."""
         raise NotImplementedError()
 
     @abstractmethod
-    def scan_sbom(self) -> None:
-        """Performs a scan on a given target SBOM."""
+    def scan_image(self) -> None:
+        """Performs a scan on a given target image."""
         raise NotImplementedError()
 
     @abstractmethod

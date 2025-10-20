@@ -151,19 +151,23 @@ def sbom_diff(
         exit(1)
 
     vuln_differ = VulnerabilityDiffer(
-        previous_sbom=previous_sbom, next_sbom=next_sbom, scanner=scanner
+        previous_sbom=previous_sbom, next_sbom=next_sbom, scanner=scanner, scan_type="sbom"
     )
 
-    if output == "json":
-        if not all_info:
-            json.dump(vuln_differ.vulnerabilities_diff, file, indent=2)
-        else:
-            json.dump(vuln_differ.vulnerabilities_diff_all_info, file, indent=2)
-    else:  # rich format
-        if not all_info:
-            format_vulnerabilities_list(vuln_differ.vulnerabilities_diff, file)
-        else:
-            format_vulnerabilities_table(vuln_differ.vulnerabilities_diff_all_info, file)
+    try:
+        if output == "json":
+            if not all_info:
+                json.dump(vuln_differ.vulnerabilities_diff, file, indent=2)
+            else:
+                json.dump(vuln_differ.vulnerabilities_diff_all_info, file, indent=2)
+        else:  # rich format
+            if not all_info:
+                format_vulnerabilities_list(vuln_differ.vulnerabilities_diff, file)
+            else:
+                format_vulnerabilities_table(vuln_differ.vulnerabilities_diff_all_info, file)
+    except RuntimeError as e:
+        click.echo(f"Error: {e}", err=True)
+        exit(1)
 
 
 # image vulnerability diff command
@@ -181,13 +185,6 @@ def sbom_diff(
     metavar="str",
     help="URL from the next container image.",
     required=True,
-)
-@click.option(
-    "-a",
-    "--all-info",
-    is_flag=True,
-    help="Outputs all information for each vulnerability.",
-    required=False,
 )
 @click.option(
     "-o",
@@ -210,7 +207,6 @@ def image_diff(
     ctx: click.core.Context,
     previous_image: str,
     next_image: str,
-    all_info: bool,
     output: str,
     file: IO[str],
 ):
@@ -225,19 +221,17 @@ def image_diff(
         exit(1)
 
     vuln_differ = VulnerabilityDiffer(
-        previous_image=previous_image, next_image=next_image, scanner=scanner
+        previous_image=previous_image, next_image=next_image, scanner=scanner, scan_type="image"
     )
 
-    if output == "json":
-        if not all_info:
+    try:
+        if output == "json":
             json.dump(vuln_differ.vulnerabilities_diff, file, indent=2)
-        else:
-            json.dump(vuln_differ.vulnerabilities_diff_all_info, file, indent=2)
-    else:  # rich format
-        if not all_info:
+        else:  # rich format
             format_vulnerabilities_list(vuln_differ.vulnerabilities_diff, file)
-        else:
-            format_vulnerabilities_table(vuln_differ.vulnerabilities_diff_all_info, file)
+    except RuntimeError as e:
+        click.echo(f"Error: {e}", err=True)
+        exit(1)
 
 
 if __name__ == "__main__":

@@ -45,91 +45,53 @@ def test_init_with_mixed_parameters(test_previous_sbom_path, test_next_image):
     assert differ.next_release.sbom is None
 
 
-@patch("diffused.differ.tempfile.TemporaryDirectory")
-@patch("diffused.differ.os.path.join")
-def test_retrieve_sboms_success(mock_join, mock_temp_dir):
-    """Test successful SBOM retrieval."""
-    # setup mocks
-    mock_temp_dir.return_value = MagicMock()
-    mock_temp_dir.return_value.name = "/tmp/diffused-test"
-    mock_join.side_effect = [
-        "/tmp/diffused-test/previous_image_latest.json",
-        "/tmp/diffused-test/next_image_latest.json",
-    ]
+def test_scan_images_with_images(test_previous_image, test_next_image):
+    """Test scan_images when images are provided."""
+    differ = VulnerabilityDiffer(previous_image=test_previous_image, next_image=test_next_image)
 
-    differ = VulnerabilityDiffer(
-        previous_image="previous/image:latest", next_image="next/image:latest"
-    )
+    # mock dependencies
+    differ.previous_release.scan_image = MagicMock()
+    differ.next_release.scan_image = MagicMock()
 
-    # mock the retrieve_sbom methods
-    differ.previous_release.retrieve_sbom = MagicMock()
-    differ.next_release.retrieve_sbom = MagicMock()
+    differ.scan_images()
 
-    differ.retrieve_sboms()
-
-    # verify calls
-    differ.previous_release.retrieve_sbom.assert_called_once_with(
-        "/tmp/diffused-test/previous_image_latest.json"
-    )
-    differ.next_release.retrieve_sbom.assert_called_once_with(
-        "/tmp/diffused-test/next_image_latest.json"
-    )
+    # should call scan_image for both releases
+    differ.previous_release.scan_image.assert_called_once()
+    differ.next_release.scan_image.assert_called_once()
 
 
-def test_retrieve_sboms_no_images(test_previous_sbom_path, test_next_sbom_path):
-    """Test retrieve_sboms when no images are set."""
+def test_scan_images_with_existing_results(test_previous_image, test_next_image):
+    """Test scan_images when raw results already exist."""
+    differ = VulnerabilityDiffer(previous_image=test_previous_image, next_image=test_next_image)
+
+    # set raw results as already existing
+    differ.previous_release.raw_result = {"result": {}}
+    differ.next_release.raw_result = {"result": {}}
+
+    # mock scan methods
+    differ.previous_release.scan_image = MagicMock()
+    differ.next_release.scan_image = MagicMock()
+
+    differ.scan_images()
+
+    # should not call scan_image when raw results exist
+    differ.previous_release.scan_image.assert_not_called()
+    differ.next_release.scan_image.assert_not_called()
+
+
+def test_scan_sboms_with_sboms(test_previous_sbom_path, test_next_sbom_path):
+    """Test scan_sboms when SBOMs are provided."""
     differ = VulnerabilityDiffer(
         previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
     )
 
-    # mock the retrieve_sbom methods
-    differ.previous_release.retrieve_sbom = MagicMock()
-    differ.next_release.retrieve_sbom = MagicMock()
-
-    differ.retrieve_sboms()
-
-    # should not call retrieve_sbom when images are None
-    differ.previous_release.retrieve_sbom.assert_not_called()
-    differ.next_release.retrieve_sbom.assert_not_called()
-
-
-@patch("diffused.differ.tempfile.TemporaryDirectory")
-def test_retrieve_sboms_partial_sboms(mock_temp_dir, test_previous_image, test_next_image):
-    """Test retrieve_sboms when one SBOM already exists."""
-    mock_temp_dir.return_value = MagicMock()
-    mock_temp_dir.return_value.name = "/tmp/diffused-test"
-
-    differ = VulnerabilityDiffer(previous_image=test_previous_image, next_image=test_next_image)
-
-    # set one SBOM as already existing
-    differ.previous_release.sbom = "/existing/previous.json"
-
-    # mock the retrieve_sbom methods
-    differ.previous_release.retrieve_sbom = MagicMock()
-    differ.next_release.retrieve_sbom = MagicMock()
-
-    with patch("diffused.differ.os.path.join") as mock_join:
-        mock_join.return_value = "/tmp/diffused-test/next_latest.json"
-        differ.retrieve_sboms()
-
-    # should only call retrieve_sbom for next release
-    differ.previous_release.retrieve_sbom.assert_not_called()
-    differ.next_release.retrieve_sbom.assert_called_once()
-
-
-def test_scan_sboms_with_missing_sboms(test_previous_image, test_next_image):
-    """Test scan_sboms when SBOMs are missing."""
-    differ = VulnerabilityDiffer(previous_image=test_previous_image, next_image=test_next_image)
-
     # mock dependencies
-    differ.retrieve_sboms = MagicMock()
     differ.previous_release.scan_sbom = MagicMock()
     differ.next_release.scan_sbom = MagicMock()
 
     differ.scan_sboms()
 
-    # should call retrieve_sboms first
-    differ.retrieve_sboms.assert_called_once()
+    # should call scan_sbom for both releases
     differ.previous_release.scan_sbom.assert_called_once()
     differ.next_release.scan_sbom.assert_called_once()
 
@@ -155,20 +117,22 @@ def test_scan_sboms_with_existing_results(test_previous_sbom_path, test_next_sbo
     differ.next_release.scan_sbom.assert_not_called()
 
 
-def test_process_results_calls_scan_sboms(test_previous_sbom_path, test_next_sbom_path):
-    """Test process_results calls scan_sboms when needed."""
+def test_process_results_processes_results(test_previous_sbom_path, test_next_sbom_path):
+    """Test process_results processes both releases."""
     differ = VulnerabilityDiffer(
         previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
     )
 
+    # set raw results so process_result can be called
+    differ.previous_release.raw_result = {"Results": []}
+    differ.next_release.raw_result = {"Results": []}
+
     # mock dependencies
-    differ.scan_sboms = MagicMock()
     differ.previous_release.process_result = MagicMock()
     differ.next_release.process_result = MagicMock()
 
     differ.process_results()
 
-    differ.scan_sboms.assert_called_once()
     differ.previous_release.process_result.assert_called_once()
     differ.next_release.process_result.assert_called_once()
 
@@ -491,3 +455,150 @@ def test_init_with_valid_scanners(rox_env, test_previous_sbom_path, test_next_sb
     )
     assert differ_acs.previous_release.sbom == test_previous_sbom_path
     assert differ_acs.next_release.sbom == test_next_sbom_path
+
+
+def test_init_with_scan_type(test_previous_sbom_path, test_next_sbom_path):
+    """Test VulnerabilityDiffer initialization with scan_type parameter."""
+    differ = VulnerabilityDiffer(
+        previous_sbom=test_previous_sbom_path,
+        next_sbom=test_next_sbom_path,
+        scan_type="sbom",
+    )
+    assert differ.scan_type == "sbom"
+
+
+def test_process_results_with_scan_type_sbom(test_previous_sbom_path, test_next_sbom_path):
+    """Test process_results calls scan_sboms when scan_type is 'sbom'."""
+    differ = VulnerabilityDiffer(
+        previous_sbom=test_previous_sbom_path,
+        next_sbom=test_next_sbom_path,
+        scan_type="sbom",
+    )
+
+    # Mock scan methods and set raw_result after scan
+    def mock_scan_sboms():
+        differ.previous_release.raw_result = {"Results": []}
+        differ.next_release.raw_result = {"Results": []}
+
+    differ.scan_sboms = MagicMock(side_effect=mock_scan_sboms)
+    differ.scan_images = MagicMock()
+    differ.previous_release.process_result = MagicMock()
+    differ.next_release.process_result = MagicMock()
+
+    differ.process_results()
+
+    # should call scan_sboms, not scan_images
+    differ.scan_sboms.assert_called_once()
+    differ.scan_images.assert_not_called()
+
+
+def test_process_results_with_scan_type_image(test_previous_image, test_next_image):
+    """Test process_results calls scan_images when scan_type is 'image'."""
+    differ = VulnerabilityDiffer(
+        previous_image=test_previous_image,
+        next_image=test_next_image,
+        scan_type="image",
+    )
+
+    # Mock scan methods and set raw_result after scan
+    def mock_scan_images():
+        differ.previous_release.raw_result = {"result": {}}
+        differ.next_release.raw_result = {"result": {}}
+
+    differ.scan_sboms = MagicMock()
+    differ.scan_images = MagicMock(side_effect=mock_scan_images)
+    differ.previous_release.process_result = MagicMock()
+    differ.next_release.process_result = MagicMock()
+
+    differ.process_results()
+
+    # should call scan_images, not scan_sboms
+    differ.scan_images.assert_called_once()
+    differ.scan_sboms.assert_not_called()
+
+
+def test_process_results_with_invalid_scan_type(test_previous_sbom_path, test_next_sbom_path):
+    """Test process_results raises ValueError with invalid scan_type."""
+    differ = VulnerabilityDiffer(
+        previous_sbom=test_previous_sbom_path,
+        next_sbom=test_next_sbom_path,
+        scan_type="invalid",
+    )
+
+    with pytest.raises(
+        ValueError, match="Unsupported scan_type: invalid. Supported types: \\['sbom', 'image'\\]"
+    ):
+        differ.process_results()
+
+
+def test_process_results_with_scan_type_skips_when_raw_results_exist(
+    test_previous_sbom_path, test_next_sbom_path
+):
+    """Test process_results does not scan when raw results already exist."""
+    differ = VulnerabilityDiffer(
+        previous_sbom=test_previous_sbom_path,
+        next_sbom=test_next_sbom_path,
+        scan_type="sbom",
+    )
+
+    # Set raw results as already existing
+    differ.previous_release.raw_result = {"Results": []}
+    differ.next_release.raw_result = {"Results": []}
+
+    # Mock scan methods
+    differ.scan_sboms = MagicMock()
+    differ.scan_images = MagicMock()
+    differ.previous_release.process_result = MagicMock()
+    differ.next_release.process_result = MagicMock()
+
+    differ.process_results()
+
+    # should not call scan methods when raw results exist
+    differ.scan_sboms.assert_not_called()
+    differ.scan_images.assert_not_called()
+
+
+def test_process_results_raises_error_when_previous_scan_fails(
+    test_previous_sbom_path, test_next_sbom_path
+):
+    """Test process_results raises RuntimeError when previous scan fails."""
+    differ = VulnerabilityDiffer(
+        previous_sbom=test_previous_sbom_path,
+        next_sbom=test_next_sbom_path,
+        scan_type="sbom",
+    )
+
+    # Mock scan_sboms to NOT set raw_result (simulating scan failure)
+    def mock_scan_sboms_failure():
+        # Only set next_release raw_result, leave previous empty to simulate failure
+        differ.next_release.raw_result = {"Results": []}
+        differ.previous_release.error = "Trivy command failed"
+
+    differ.scan_sboms = MagicMock(side_effect=mock_scan_sboms_failure)
+
+    with pytest.raises(RuntimeError, match="Failed to scan previous release. Trivy command failed"):
+        differ.process_results()
+
+    assert differ.error == "Failed to scan previous release. Trivy command failed"
+
+
+def test_process_results_raises_error_when_next_scan_fails(test_previous_image, test_next_image):
+    """Test process_results raises RuntimeError when next scan fails."""
+    differ = VulnerabilityDiffer(
+        previous_image=test_previous_image,
+        next_image=test_next_image,
+        scan_type="image",
+    )
+
+    # Mock scan_images to NOT set raw_result (simulating scan failure)
+    def mock_scan_images_failure():
+        # Only set previous_release raw_result, leave next empty to simulate failure
+        differ.previous_release.raw_result = {"result": {}}
+        differ.next_release.error = "ACS command failed"
+
+    differ.scan_images = MagicMock(side_effect=mock_scan_images_failure)
+
+    with pytest.raises(RuntimeError, match="Failed to scan next release. ACS command failed"):
+        differ.process_results()
+
+    assert differ.error == "Failed to scan next release. ACS command failed"

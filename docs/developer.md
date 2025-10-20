@@ -83,15 +83,20 @@ To add support for a new vulnerability scanner:
 2. Implement the required abstract methods
 3. Add comprehensive unit tests
 4. Update the CLI to support the new scanner
+5. Add the scanner to the scanner map in `VulnerabilityDiffer._get_scanner_class()`
 
 Example:
 ```python
 class NewScanner(BaseScanner):
-    def retrieve_sbom(self) -> bool:
-        # Implementation here
+    def scan_sbom(self) -> None:
+        # Scan SBOM and populate self.raw_result
         pass
-    
+
+    def scan_image(self) -> None:
+        # Scan container image and populate self.raw_result
+        pass
+
     def process_result(self) -> None:
-        # Implementation here
+        # Process self.raw_result and populate self.processed_result
         pass
 ```
