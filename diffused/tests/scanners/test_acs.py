@@ -28,6 +28,7 @@ MISSING_IMAGE_ERROR = "You must set the image to retrieve the SBOM"
 MISSING_OUTPUT_FILE_ERROR = "You must set the output_file with a valid path"
 MISSING_IMAGE_SCAN_ERROR = "You must set the image to scan"
 NO_RAW_RESULT_ERROR = "Run a scan before processing its output"
+SBOM_SCAN_NOT_SUPPORTED_ERROR = "SBOM scanning is not supported by ACS"
 
 
 def create_mock_result(stdout="", returncode=SUCCESS_RETURN_CODE):
@@ -169,121 +170,12 @@ def test_acs_command_execution_handles_unexpected_subprocess_error(mock_run, rox
     assert "Unexpected error during ACS test operation" in scanner.error
 
 
-@patch.object(ACSScanner, "_run_acs_command")
-def test_sbom_retrieval_succeeds_with_valid_image_and_output_path(
-    mock_run_command, rox_env, test_image, test_output_path
-):
-    """Test SBOM retrieval completes successfully when provided with valid image and output path."""
+def test_scan_sbom_raises_not_implemented_error(rox_env, test_image):
+    """Test scan_sbom raises NotImplementedError as SBOM scanning is not supported by ACS."""
     scanner = create_scanner_with_image(test_image)
-    mock_result = create_mock_result(stdout='{"packages": []}')
-    mock_run_command.return_value = mock_result
-
-    with patch("builtins.open", MagicMock()) as mock_open:
-        scanner.retrieve_sbom(test_output_path)
-
-    mock_run_command.assert_called_once_with(
-        ROXCTL_SBOM_ARGS + ["--image", test_image],
-        f"SBOM generation for {test_image}",
-    )
-    assert scanner.sbom == test_output_path
-
-
-def test_sbom_retrieval_fails_when_scanner_has_no_image(rox_env, test_sbom_path, test_output_path):
-    """Test SBOM retrieval raises ValueError when scanner was initialized without an image."""
-    scanner = create_scanner_with_sbom(test_sbom_path)
-    with pytest.raises(ValueError, match=MISSING_IMAGE_ERROR):
-        scanner.retrieve_sbom(test_output_path)
-
-
-def test_sbom_retrieval_fails_when_no_output_path_provided(rox_env, test_image):
-    """Test SBOM retrieval raises ValueError when no output file path is provided."""
-    scanner = create_scanner_with_image(test_image)
-    with pytest.raises(ValueError, match=MISSING_OUTPUT_FILE_ERROR):
-        scanner.retrieve_sbom("")
-
-
-@patch.object(ACSScanner, "_run_acs_command")
-def test_sbom_retrieval_handles_command_execution_failure_gracefully(
-    mock_run_command, rox_env, test_image, test_output_path
-):
-    """Test SBOM retrieval handles subprocess command failure without raising exception."""
-    scanner = create_scanner_with_image(test_image)
-    mock_run_command.side_effect = subprocess.CalledProcessError(1, ["roxctl"])
-
-    scanner.retrieve_sbom(test_output_path)
-
-    # Should not raise exception, error should be stored
-    assert scanner.sbom is None  # Should not be set on failure
-
-
-@patch.object(ACSScanner, "_run_acs_command")
-def test_sbom_retrieval_handles_invalid_json_output_gracefully(
-    mock_run_command, rox_env, test_image, test_output_path
-):
-    """Test SBOM retrieval handles invalid JSON output from command without raising exception."""
-    scanner = create_scanner_with_image(test_image)
-    mock_result = create_mock_result(stdout="invalid json output")
-    mock_run_command.return_value = mock_result
-
-    scanner.retrieve_sbom(test_output_path)
-
-    # Should not raise exception, error should be stored
-    assert scanner.sbom is None  # Should not be set on failure
-    assert f"Error parsing SBOM output for {test_image}" in scanner.error
-
-
-@patch.object(ACSScanner, "_run_acs_command")
-def test_image_scanning_succeeds_with_valid_image_and_empty_response(
-    mock_run_command, rox_env, test_image, empty_acs_response
-):
-    """Test image scanning completes successfully when provided with valid image and returns empty response."""
-    scanner = create_scanner_with_image(test_image)
-    mock_result = create_mock_result(stdout=json.dumps(empty_acs_response))
-    mock_run_command.return_value = mock_result
-
-    scanner.scan_sbom()
-
-    mock_run_command.assert_called_once_with(
-        ROXCTL_SCAN_ARGS + ["--image", test_image],
-        f"Image scan for {test_image}",
-    )
-    assert scanner.raw_result == empty_acs_response
-
-
-def test_image_scanning_fails_when_scanner_has_no_image(rox_env, test_sbom_path):
-    """Test image scanning raises ValueError when scanner was initialized without an image."""
-    scanner = create_scanner_with_sbom(test_sbom_path)
-    with pytest.raises(ValueError, match=MISSING_IMAGE_SCAN_ERROR):
+    with pytest.raises(NotImplementedError, match=SBOM_SCAN_NOT_SUPPORTED_ERROR):
         scanner.scan_sbom()
-
-
-@patch.object(ACSScanner, "_run_acs_command")
-def test_image_scanning_handles_invalid_json_output_gracefully(
-    mock_run_command, rox_env, test_image
-):
-    """Test image scanning handles invalid JSON output from command without raising exception."""
-    scanner = create_scanner_with_image(test_image)
-    mock_result = create_mock_result(stdout="invalid json")
-    mock_run_command.return_value = mock_result
-
-    scanner.scan_sbom()
-
-    assert "Error parsing ACS output" in scanner.error
-    assert scanner.raw_result is None
-
-
-@patch.object(ACSScanner, "_run_acs_command")
-def test_image_scanning_handles_command_execution_failure_gracefully(
-    mock_run_command, rox_env, test_image
-):
-    """Test image scanning handles subprocess command failure without raising exception."""
-    scanner = create_scanner_with_image(test_image)
-    mock_run_command.side_effect = subprocess.CalledProcessError(1, ["roxctl"])
-
-    scanner.scan_sbom()
-
-    # Should not raise exception, error should be stored
-    assert scanner.raw_result is None
+    assert SBOM_SCAN_NOT_SUPPORTED_ERROR in scanner.error
 
 
 def test_result_processing_fails_when_no_scan_data_available(rox_env, test_image):
@@ -416,26 +308,18 @@ def test_version_retrieval_returns_unknown_on_unexpected_error(mock_run, rox_env
 
 
 def test_complete_workflow_executes_all_operations_successfully(
-    rox_env, test_image, test_sbom_path, integration_acs_response
+    rox_env, test_image, integration_acs_response
 ):
-    """Test complete workflow of SBOM retrieval, image scanning, and result processing executes successfully."""
+    """Test complete workflow of image scanning and result processing executes successfully."""
     scanner = create_scanner_with_image(test_image)
 
     # Mock the entire workflow
     with patch.object(scanner, "_run_acs_command") as mock_run:
-        # Test retrieve_sbom
-        mock_result = create_mock_result(stdout='{"packages": []}')
-        mock_run.return_value = mock_result
-
-        with patch("builtins.open", MagicMock()):
-            scanner.retrieve_sbom(test_sbom_path)
-        assert scanner.sbom == test_sbom_path
-
-        # Test scan_sbom
+        # Test scan_image
         mock_result = create_mock_result(stdout=json.dumps(integration_acs_response))
         mock_run.return_value = mock_result
 
-        scanner.scan_sbom()
+        scanner.scan_image()
         assert scanner.raw_result is not None
 
         # Test process_result
@@ -489,3 +373,56 @@ def test_result_processing_filters_mixed_vulnerability_data_correctly(
     assert_cve_packages_match(
         scanner.processed_result, "CVE-2023-5678", [Package(name="package4", version="4.0.0")]
     )
+
+
+@patch.object(ACSScanner, "_run_acs_command")
+def test_scan_image_succeeds_with_valid_image(
+    mock_run_command, rox_env, test_image, sample_acs_response
+):
+    """Test scan_image completes successfully when provided with valid image."""
+    scanner = create_scanner_with_image(test_image)
+    mock_result = create_mock_result(stdout=json.dumps(sample_acs_response))
+    mock_run_command.return_value = mock_result
+
+    scanner.scan_image()
+
+    mock_run_command.assert_called_once_with(
+        ROXCTL_SCAN_ARGS + ["--image", test_image],
+        f"Image scan for {test_image}",
+    )
+    assert scanner.raw_result == sample_acs_response
+    assert scanner.error == ""
+
+
+def test_scan_image_fails_when_scanner_has_no_image(rox_env, test_sbom_path):
+    """Test scan_image raises ValueError when scanner was initialized without an image."""
+    scanner = create_scanner_with_sbom(test_sbom_path)
+    with pytest.raises(ValueError, match=MISSING_IMAGE_SCAN_ERROR):
+        scanner.scan_image()
+
+
+@patch.object(ACSScanner, "_run_acs_command")
+def test_scan_image_handles_invalid_json_output_gracefully(mock_run_command, rox_env, test_image):
+    """Test scan_image handles invalid JSON output from command without raising exception."""
+    scanner = create_scanner_with_image(test_image)
+    mock_result = create_mock_result(stdout="invalid json")
+    mock_run_command.return_value = mock_result
+
+    scanner.scan_image()
+
+    assert "Error parsing ACS output" in scanner.error
+    assert scanner.raw_result is None
+
+
+@patch.object(ACSScanner, "_run_acs_command")
+def test_scan_image_handles_command_execution_failure_gracefully(
+    mock_run_command, rox_env, test_image
+):
+    """Test scan_image handles subprocess command failure without raising exception."""
+    scanner = create_scanner_with_image(test_image)
+    mock_run_command.side_effect = subprocess.CalledProcessError(1, ["roxctl"])
+
+    scanner.scan_image()
+
+    # Should not raise exception, error should be stored
+    assert scanner.raw_result is None

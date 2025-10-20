@@ -59,49 +59,15 @@ class ACSScanner(BaseScanner):
             self.error = error_message
             raise
 
-    def retrieve_sbom(self, output_file: str) -> None:
-        """Retrieves the SBOM from a container image."""
-        if not self.image:
-            raise ValueError("You must set the image to retrieve the SBOM.")
-        if not output_file:
-            raise ValueError("You must set the output_file with a valid path to retrieve the SBOM.")
-
-        # command to generate the sbom
-        cmd = [
-            "roxctl",
-            "--no-color",
-            "image",
-            "sbom",
-            "--image",
-            self.image,
-        ]
-
-        try:
-            result = self._run_acs_command(cmd, f"SBOM generation for {self.image}")
-            parsed_output = json.loads(result.stdout)
-
-            with open(output_file, "w") as f:
-                json.dump(parsed_output, f, indent=2)
-
-            # Set the sbom path after successful generation
-            self.sbom = output_file
-            logger.info(f"Successfully generated SBOM for {self.image} at {output_file}.")
-        except json.JSONDecodeError as e:
-            error_message = f"Error parsing SBOM output for {self.image}: {e}."
-            logger.error(error_message)
-            self.error = error_message
-        except Exception:
-            # Error already logged and stored in self.error by _run_acs_command
-            pass
-
     def scan_sbom(self) -> None:
         """Performs a scan on a given SBOM."""
-        # The ACS scanner does not support SBOM scanning yet.
-        logger.warning(
-            "Image %s: SBOM scanning is not supported by ACS yet. Falling back to image scanning.",
-            self.image,
-        )
+        error_message = "SBOM scanning is not supported by ACS. Please use scan_image() instead."
+        logger.error(error_message)
+        self.error = error_message
+        raise NotImplementedError(error_message)
 
+    def scan_image(self) -> None:
+        """Performs a scan on a given image."""
         if not self.image:
             raise ValueError("You must set the image to scan.")
 

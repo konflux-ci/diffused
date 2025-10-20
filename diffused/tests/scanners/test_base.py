@@ -11,11 +11,11 @@ from diffused.scanners.models import Package
 class ScannerClassTest(BaseScanner):
     """Test implementation of BaseScanner."""
 
-    def retrieve_sbom(self, output_file: str) -> None:
+    def scan_sbom(self) -> None:
         """Test implementation."""
         pass
 
-    def scan_sbom(self) -> None:
+    def scan_image(self) -> None:
         """Test implementation."""
         pass
 
@@ -32,13 +32,13 @@ class ScannerClassTest(BaseScanner):
 class SuperCallScanner(BaseScanner):
     """Test implementation that calls super methods to trigger NotImplementedError."""
 
-    def retrieve_sbom(self, output_file: str) -> None:
-        """Implementation that calls super to trigger NotImplementedError."""
-        super().retrieve_sbom(output_file)
-
     def scan_sbom(self) -> None:
         """Implementation that calls super to trigger NotImplementedError."""
         super().scan_sbom()
+
+    def scan_image(self) -> None:
+        """Implementation that calls super to trigger NotImplementedError."""
+        super().scan_image()
 
     def process_result(self) -> None:
         """Implementation that calls super to trigger NotImplementedError."""
@@ -118,13 +118,13 @@ def test_cannot_instantiate_abstract_class(test_sbom_path):
         BaseScanner(sbom=test_sbom_path)
 
 
-def test_all_abstract_methods_implemented(test_sbom_path, test_output_path):
+def test_all_abstract_methods_implemented(test_sbom_path):
     """Test all abstract methods are implemented."""
     scanner = ScannerClassTest(sbom=test_sbom_path)
 
     # Should not raise NotImplementedError
-    scanner.retrieve_sbom(test_output_path)
     scanner.scan_sbom()
+    scanner.scan_image()
     scanner.process_result()
     version = scanner.get_version()
 
@@ -135,7 +135,7 @@ def test_abstract_methods_required(test_sbom_path):
     """Test that all abstract methods must be implemented."""
 
     class IncompleteScanner(BaseScanner):
-        def retrieve_sbom(self, output_file: str) -> None:
+        def scan_sbom(self) -> None:
             pass
 
         # Missing other abstract methods
@@ -144,18 +144,18 @@ def test_abstract_methods_required(test_sbom_path):
         IncompleteScanner(sbom=test_sbom_path)
 
 
-def test_retrieve_sbom_not_implemented_error(test_sbom_path, test_output_path):
-    """Test retrieve_sbom raises NotImplementedError when calling super."""
-    scanner = SuperCallScanner(sbom=test_sbom_path)
-    with pytest.raises(NotImplementedError):
-        scanner.retrieve_sbom(test_output_path)
-
-
 def test_scan_sbom_not_implemented_error(test_sbom_path):
     """Test scan_sbom raises NotImplementedError when calling super."""
     scanner = SuperCallScanner(sbom=test_sbom_path)
     with pytest.raises(NotImplementedError):
         scanner.scan_sbom()
+
+
+def test_scan_image_not_implemented_error(test_image):
+    """Test scan_image raises NotImplementedError when calling super."""
+    scanner = SuperCallScanner(image=test_image)
+    with pytest.raises(NotImplementedError):
+        scanner.scan_image()
 
 
 def test_process_result_not_implemented_error(test_sbom_path):

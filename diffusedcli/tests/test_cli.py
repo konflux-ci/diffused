@@ -45,7 +45,10 @@ def test_sbom_diff_basic(
     mock_isfile.assert_any_call(test_previous_sbom_path)
     mock_isfile.assert_any_call(test_next_sbom_path)
     mock_differ.assert_called_once_with(
-        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path, scanner="trivy"
+        previous_sbom=test_previous_sbom_path,
+        next_sbom=test_next_sbom_path,
+        scanner="trivy",
+        scan_type="sbom",
     )
     # check that format_vulnerabilities_list was called with data and a file object
     assert mock_format_list.call_count == 1
@@ -190,40 +193,15 @@ def test_image_diff_basic(
 
     assert result.exit_code == 0
     mock_differ.assert_called_once_with(
-        previous_image=test_previous_image, next_image=test_next_image, scanner="trivy"
+        previous_image=test_previous_image,
+        next_image=test_next_image,
+        scanner="trivy",
+        scan_type="image",
     )
     # check that format_vulnerabilities_list was called with data and a file object
     assert mock_format_list.call_count == 1
     args, kwargs = mock_format_list.call_args
     assert args[0] == sample_vulnerabilities_list
-    assert hasattr(args[1], "write")  # file-like object
-
-
-@patch("diffusedcli.cli.VulnerabilityDiffer")
-@patch("diffusedcli.cli.format_vulnerabilities_table")
-def test_image_diff_all_info(
-    mock_format_table,
-    mock_differ,
-    runner,
-    sample_vulnerabilities_all_info,
-    test_previous_image,
-    test_next_image,
-):
-    """Test image_diff command with all info flag."""
-    # setup mocks
-    mock_differ_instance = MagicMock()
-    mock_differ_instance.vulnerabilities_diff_all_info = sample_vulnerabilities_all_info
-    mock_differ.return_value = mock_differ_instance
-
-    result = runner.invoke(
-        cli, ["image-diff", "-p", test_previous_image, "-n", test_next_image, "-a"]
-    )
-
-    assert result.exit_code == 0
-    # check that format_vulnerabilities_table was called with data and a file object
-    assert mock_format_table.call_count == 1
-    args, kwargs = mock_format_table.call_args
-    assert args[0] == sample_vulnerabilities_all_info
     assert hasattr(args[1], "write")  # file-like object
 
 
@@ -245,26 +223,6 @@ def test_image_diff_json_output(
     # verify JSON output
     output_data = json.loads(result.output.strip())
     assert output_data == sample_vulnerabilities_list
-
-
-@patch("diffusedcli.cli.VulnerabilityDiffer")
-def test_image_diff_json_all_info(
-    mock_differ, runner, sample_vulnerabilities_all_info, test_previous_image, test_next_image
-):
-    """Test image_diff command with JSON output and all info."""
-    # setup mocks
-    mock_differ_instance = MagicMock()
-    mock_differ_instance.vulnerabilities_diff_all_info = sample_vulnerabilities_all_info
-    mock_differ.return_value = mock_differ_instance
-
-    result = runner.invoke(
-        cli, ["image-diff", "-p", test_previous_image, "-n", test_next_image, "-a", "-o", "json"]
-    )
-
-    assert result.exit_code == 0
-    # verify JSON output
-    output_data = json.loads(result.output.strip())
-    assert output_data == sample_vulnerabilities_all_info
 
 
 def test_sbom_diff_missing_required_options(runner):
@@ -426,7 +384,10 @@ def test_sbom_diff_with_trivy_scanner(
 
         assert result.exit_code == 0
         mock_differ.assert_called_once_with(
-            previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path, scanner="trivy"
+            previous_sbom=test_previous_sbom_path,
+            next_sbom=test_next_sbom_path,
+            scanner="trivy",
+            scan_type="sbom",
         )
 
 
@@ -467,7 +428,10 @@ def test_sbom_diff_scanner_case_insensitive(runner, test_previous_sbom_path, tes
 
         assert result.exit_code == 0
         mock_differ.assert_called_once_with(
-            previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path, scanner="trivy"
+            previous_sbom=test_previous_sbom_path,
+            next_sbom=test_next_sbom_path,
+            scanner="trivy",
+            scan_type="sbom",
         )
 
 
@@ -526,7 +490,10 @@ def test_image_diff_with_acs_scanner(
 
     assert result.exit_code == 0
     mock_differ.assert_called_once_with(
-        previous_image=test_previous_image, next_image=test_next_image, scanner="acs"
+        previous_image=test_previous_image,
+        next_image=test_next_image,
+        scanner="acs",
+        scan_type="image",
     )
 
 
@@ -545,7 +512,10 @@ def test_image_diff_with_trivy_scanner(
 
     assert result.exit_code == 0
     mock_differ.assert_called_once_with(
-        previous_image=test_previous_image, next_image=test_next_image, scanner="trivy"
+        previous_image=test_previous_image,
+        next_image=test_next_image,
+        scanner="trivy",
+        scan_type="image",
     )
 
 
@@ -578,8 +548,49 @@ def test_image_diff_scanner_case_insensitive(runner, test_previous_image, test_n
 
         assert result.exit_code == 0
         mock_differ.assert_called_once_with(
-            previous_image=test_previous_image, next_image=test_next_image, scanner="acs"
+            previous_image=test_previous_image,
+            next_image=test_next_image,
+            scanner="acs",
+            scan_type="image",
         )
+
+
+@patch("diffusedcli.cli.os.path.isfile")
+@patch("diffusedcli.cli.VulnerabilityDiffer")
+def test_sbom_diff_runtime_error(
+    mock_differ, mock_isfile, runner, test_previous_sbom_path, test_next_sbom_path
+):
+    """Test sbom_diff handles RuntimeError from scanner."""
+    mock_isfile.return_value = True
+    mock_differ_instance = MagicMock()
+    # Use PropertyMock to properly mock a property that raises an exception
+    type(mock_differ_instance).vulnerabilities_diff = property(
+        MagicMock(side_effect=RuntimeError("Scanner failed"))
+    )
+    mock_differ.return_value = mock_differ_instance
+
+    result = runner.invoke(
+        cli, ["sbom-diff", "-p", test_previous_sbom_path, "-n", test_next_sbom_path]
+    )
+
+    assert result.exit_code == 1
+    assert "Error: Scanner failed" in result.output
+
+
+@patch("diffusedcli.cli.VulnerabilityDiffer")
+def test_image_diff_runtime_error(mock_differ, runner, test_previous_image, test_next_image):
+    """Test image_diff handles RuntimeError from scanner."""
+    mock_differ_instance = MagicMock()
+    # Use PropertyMock to properly mock a property that raises an exception
+    type(mock_differ_instance).vulnerabilities_diff = property(
+        MagicMock(side_effect=RuntimeError("Scanner failed"))
+    )
+    mock_differ.return_value = mock_differ_instance
+
+    result = runner.invoke(cli, ["image-diff", "-p", test_previous_image, "-n", test_next_image])
+
+    assert result.exit_code == 1
+    assert "Error: Scanner failed" in result.output
 
 
 # the following test throws the following warning on pytest:

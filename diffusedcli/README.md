@@ -45,9 +45,6 @@ diffused image-diff -p ubuntu:20.04 -n ubuntu:22.04
 # Use ACS scanner
 diffused --scanner acs image-diff -p nginx:1.20 -n nginx:1.21
 
-# Get detailed information about each vulnerability
-diffused image-diff -p nginx:1.20 -n nginx:1.21 --all-info
-
 # Save output to JSON file
 diffused image-diff -p app:v1.0 -n app:v2.0 --output json --file report.json
 ```
@@ -81,7 +78,6 @@ For more information on commands and options, use the `--help` option.
 | Option | Short | Description | Default |
 |--------|-------|-------------|---------|
 | `--scanner` | `-s` | Scanner to use (`acs`, `trivy`) | `trivy` |
-| `--all-info` | `-a` | Show detailed vulnerability information | `False` |
 | `--output` | `-o` | Output format (`rich`, `json`) | `rich` |
 | `--file` | `-f` | Output file (use `-` for stdout) | `-` |
 | `--help` | `-h` | Show help message | - |
@@ -92,6 +88,8 @@ For more information on commands and options, use the `--help` option.
 |--------|-------|-------------|----------|
 | `--previous-image` | `-p` | Previous container image URL | Yes |
 | `--next-image` | `-n` | Next container image URL | Yes |
+| `--output` | `-o` | Output format (`rich`, `json`) | `rich` |
+| `--file` | `-f` | Output file (use `-` for stdout) | `-` |
 
 ### sbom-diff Options
 
@@ -99,3 +97,6 @@ For more information on commands and options, use the `--help` option.
 |--------|-------|-------------|----------|
 | `--previous-sbom` | `-p` | Previous SBOM file path | Yes |
 | `--next-sbom` | `-n` | Next SBOM file path | Yes |
+| `--all-info` | `-a` | Show detailed vulnerability information (SBOM only) | `False` |
+| `--output` | `-o` | Output format (`rich`, `json`) | `rich` |
+| `--file` | `-f` | Output file (use `-` for stdout) | `-` |

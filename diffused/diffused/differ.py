@@ -2,8 +2,7 @@
 
 import json
 import logging
-import os
-import tempfile
+from typing import Dict, List, Optional, Union
 
 from diffused.scanners.acs import ACSScanner
 from diffused.scanners.trivy import TrivyScanner
@@ -16,18 +15,22 @@ class VulnerabilityDiffer:
 
     def __init__(
         self,
-        previous_sbom: str | None = None,
-        next_sbom: str | None = None,
-        previous_image: str | None = None,
-        next_image: str | None = None,
+        previous_sbom: Optional[str] = None,
+        next_sbom: Optional[str] = None,
+        previous_image: Optional[str] = None,
+        next_image: Optional[str] = None,
         scanner: str = "trivy",
+        scan_type: Optional[str] = None,
     ):
         # Create scanner instances based on the scanner parameter
         scanner_class = self._get_scanner_class(scanner)
         self.previous_release = scanner_class(sbom=previous_sbom, image=previous_image)
         self.next_release = scanner_class(sbom=next_sbom, image=next_image)
-        self._vulnerabilities_diff: list[str] = []
-        self._vulnerabilities_diff_all_info: dict[str, list[dict[str, dict[str, str | bool]]]] = {}
+        self.scan_type = scan_type
+        self._vulnerabilities_diff: List[str] = []
+        self._vulnerabilities_diff_all_info: Dict[
+            str, List[Dict[str, Dict[str, Union[str, bool]]]]
+        ] = {}
         self.error: str = ""
 
     @staticmethod
@@ -45,40 +48,52 @@ class VulnerabilityDiffer:
 
         return scanner_map[scanner]
 
-    def retrieve_sboms(self) -> None:
-        """Retrieves the SBOMs for the container images, if not present."""
-        temp_dir = tempfile.TemporaryDirectory(prefix="diffused-", delete=False)
-
-        # make mypy happy. This is already checked on TrivyScanner class
-        if self.previous_release.image is None or self.next_release.image is None:
-            return
-
-        if not self.previous_release.sbom:
-            previous_sbom_file_name = self.previous_release.image.replace("/", "_") + ".json"
-            previous_sbom_path = os.path.join(temp_dir.name, previous_sbom_file_name)
-            self.previous_release.retrieve_sbom(previous_sbom_path)
-
-        if not self.next_release.sbom:
-            next_sbom_file_name = self.next_release.image.replace("/", "_") + ".json"
-            next_sbom_path = os.path.join(temp_dir.name, next_sbom_file_name)
-            self.next_release.retrieve_sbom(next_sbom_path)
+    def scan_images(self) -> None:
+        """Scans the previous and next images directly."""
+        if not self.previous_release.raw_result:
+            self.previous_release.scan_image()
+        if not self.next_release.raw_result:
+            self.next_release.scan_image()
 
     def scan_sboms(self) -> None:
-        """Scans the previous and the next SBOMs, if not present."""
-        # if any of the SBOMs are missing, retrieve it first
-        if not self.previous_release.sbom or not self.next_release.sbom:
-            self.retrieve_sboms()
-
+        """Scans the previous and the next SBOMs."""
         if not self.previous_release.raw_result:
             self.previous_release.scan_sbom()
         if not self.next_release.raw_result:
             self.next_release.scan_sbom()
 
     def process_results(self) -> None:
-        """Processes the results for the previous and the next releases, if not present."""
-        if not self.previous_release.raw_result or not self.next_release.raw_result:
-            self.scan_sboms()
+        """Processes the results for the previous and the next releases, if not present.
 
+        If raw results are not available and scan_type is set, performs the appropriate
+        scan before processing.
+        """
+        # Check if we need to perform scans first
+        if not self.previous_release.raw_result or not self.next_release.raw_result:
+            if self.scan_type:
+                if self.scan_type == "sbom":
+                    self.scan_sboms()
+                elif self.scan_type == "image":
+                    self.scan_images()
+                else:
+                    raise ValueError(
+                        f"Unsupported scan_type: {self.scan_type}."
+                        " Supported types: ['sbom', 'image']"
+                    )
+
+                # Check if scans were successful before processing
+                if not self.previous_release.raw_result:
+                    error_msg = f"Failed to scan previous release. {self.previous_release.error}"
+                    logger.error(error_msg)
+                    self.error = error_msg
+                    raise RuntimeError(error_msg)
+                if not self.next_release.raw_result:
+                    error_msg = f"Failed to scan next release. {self.next_release.error}"
+                    logger.error(error_msg)
+                    self.error = error_msg
+                    raise RuntimeError(error_msg)
+
+        # Process results if not already processed
         if not self.previous_release.processed_result:
             self.previous_release.process_result()
         if not self.next_release.processed_result:
@@ -100,12 +115,25 @@ class VulnerabilityDiffer:
             return json.load(sbom_file)
 
     def generate_additional_info(self) -> None:
-        """Generates all additional information related to the vulnerabilities."""
+        """Generates all additional information related to the vulnerabilities.
+
+        Note: This requires the next release SBOM to be available. If it is not available,
+        this will return an empty dictionary.
+        """
         if not self._vulnerabilities_diff:
             self.diff_vulnerabilities()
 
         # early return if no vulnerabilities to process
         if not self._vulnerabilities_diff:
+            self._vulnerabilities_diff_all_info = {}
+            return
+
+        # early return if SBOMs are not available (cannot generate additional info)
+        if not self.next_release.sbom:
+            logger.warning(
+                "SBOM not available for next release."
+                " Cannot generate additional vulnerability info."
+            )
             self._vulnerabilities_diff_all_info = {}
             return
 
@@ -115,10 +143,6 @@ class VulnerabilityDiffer:
             affected_packages = self.previous_release.processed_result[vulnerability]
             for package in affected_packages:
                 affected_package_names.add(package.name)
-
-        # make mypy happy. This is already covered in self.diff_vulnerabilities() call above
-        if not self.next_release.sbom:
-            return
 
         # load the next release SBOM
         next_release_sbom = self.load_sbom(self.next_release.sbom)

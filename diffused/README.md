@@ -35,12 +35,60 @@ pip install diffused-lib
 
 ### Basic Library Usage
 
+#### Comparing Container Images
+
 ```python
 from diffused.differ import VulnerabilityDiffer
 
-# Create a differ instance
-vuln_differ = VulnerabilityDiffer(previous_image="ubuntu:20.04", next_image="ubuntu:22.04")
+# Create a differ instance for container images
+vuln_differ = VulnerabilityDiffer(
+    previous_image="ubuntu:20.04",
+    next_image="ubuntu:22.04",
+    scan_type="image"  # Automatically scans images
+)
+
+# Retrieve the vulnerabilities diff (list of fixed CVEs)
+fixed_vulnerabilities = vuln_differ.vulnerabilities_diff
+print(f"Fixed vulnerabilities: {fixed_vulnerabilities}")
+
+# Get detailed information about each fixed vulnerability
+detailed_info = vuln_differ.vulnerabilities_diff_all_info
+```
+
+#### Comparing SBOMs
+
+```python
+from diffused.differ import VulnerabilityDiffer
+
+# Create a differ instance for SBOMs
+vuln_differ = VulnerabilityDiffer(
+    previous_sbom="previous.sbom.json",
+    next_sbom="current.sbom.json",
+    scan_type="sbom"  # Automatically scans SBOMs
+)
 
 # Retrieve the vulnerabilities diff
-vuln_differ.vulnerabilities_diff
+fixed_vulnerabilities = vuln_differ.vulnerabilities_diff
+```
+
+#### Using Different Scanners
+
+```python
+from diffused.differ import VulnerabilityDiffer
+
+# Use Trivy scanner (default)
+trivy_differ = VulnerabilityDiffer(
+    previous_image="nginx:1.20",
+    next_image="nginx:1.21",
+    scanner="trivy",
+    scan_type="image"
+)
+
+# Use ACS scanner (requires ROX_ENDPOINT and ROX_API_TOKEN environment variables)
+acs_differ = VulnerabilityDiffer(
+    previous_image="nginx:1.20",
+    next_image="nginx:1.21",
+    scanner="acs",
+    scan_type="image"
+)
 ```

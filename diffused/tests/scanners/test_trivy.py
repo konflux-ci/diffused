@@ -97,55 +97,6 @@ def test_run_trivy_command_unexpected_error(mock_run, test_image):
 
 
 @patch.object(TrivyScanner, "_run_trivy_command")
-def test_retrieve_sbom_success(mock_run_command, test_image, test_output_path):
-    """Test successful SBOM retrieval."""
-    scanner = TrivyScanner(image=test_image)
-    mock_run_command.return_value = MagicMock()
-
-    scanner.retrieve_sbom(test_output_path)
-
-    mock_run_command.assert_called_once_with(
-        [
-            "trivy",
-            "image",
-            "--format",
-            "spdx-json",
-            "--output",
-            test_output_path,
-            test_image,
-        ],
-        f"SBOM generation for {test_image}",
-    )
-    assert scanner.sbom == test_output_path
-
-
-def test_retrieve_sbom_no_image(test_sbom_path, test_output_path):
-    """Test retrieve_sbom fails without image."""
-    scanner = TrivyScanner(sbom=test_sbom_path)
-    with pytest.raises(ValueError, match="You must set the image to retrieve the SBOM"):
-        scanner.retrieve_sbom(test_output_path)
-
-
-def test_retrieve_sbom_no_output_file(test_image):
-    """Test retrieve_sbom fails without output file."""
-    scanner = TrivyScanner(image=test_image)
-    with pytest.raises(ValueError, match="You must set the output_file with a valid path"):
-        scanner.retrieve_sbom("")
-
-
-@patch.object(TrivyScanner, "_run_trivy_command")
-def test_retrieve_sbom_command_failure(mock_run_command, test_image, test_output_path):
-    """Test retrieve_sbom handles command failure."""
-    scanner = TrivyScanner(image=test_image)
-    mock_run_command.side_effect = subprocess.CalledProcessError(1, ["trivy"])
-
-    scanner.retrieve_sbom(test_output_path)
-
-    # Should not raise exception, error should be stored
-    assert scanner.sbom is None  # Should not be set on failure
-
-
-@patch.object(TrivyScanner, "_run_trivy_command")
 def test_scan_sbom_success(mock_run_command, test_sbom_path):
     """Test successful SBOM scan."""
     scanner = TrivyScanner(sbom=test_sbom_path)
@@ -432,17 +383,13 @@ def test_get_version_complex_output(mock_run):
     assert version == "0.45.0"
 
 
-def test_integration_workflow(test_image, test_sbom_path):
+def test_integration_workflow(test_image):
     """Test complete workflow integration."""
     scanner = TrivyScanner(image=test_image)
 
     # Mock the entire workflow
     with patch.object(scanner, "_run_trivy_command") as mock_run:
-        # Test retrieve_sbom
-        scanner.retrieve_sbom(test_sbom_path)
-        assert scanner.sbom == test_sbom_path
-
-        # Test scan_sbom
+        # Test scan_image
         mock_result = MagicMock()
         mock_result.stdout = json.dumps(
             {
@@ -463,10 +410,79 @@ def test_integration_workflow(test_image, test_sbom_path):
         )
         mock_run.return_value = mock_result
 
-        scanner.scan_sbom()
+        scanner.scan_image()
         assert scanner.raw_result is not None
 
         # Test process_result
         scanner.process_result()
         assert len(scanner.processed_result) == 1
         assert "CVE-2023-1234" in scanner.processed_result
+
+
+@patch.object(TrivyScanner, "_run_trivy_command")
+def test_scan_image_success(mock_run_command, test_image):
+    """Test successful image scan with vulnerabilities."""
+    scanner = TrivyScanner(image=test_image)
+    mock_result = MagicMock()
+    mock_result.stdout = json.dumps(
+        {
+            "Results": [
+                {
+                    "Target": "test-image",
+                    "Class": "os-pkgs",
+                    "Vulnerabilities": [
+                        {
+                            "VulnerabilityID": "CVE-2023-1234",
+                            "PkgName": "package1",
+                            "InstalledVersion": "1.0.0",
+                        }
+                    ],
+                }
+            ]
+        }
+    )
+    mock_run_command.return_value = mock_result
+
+    scanner.scan_image()
+
+    mock_run_command.assert_called_once_with(
+        ["trivy", "image", "--scanners", "vuln", "--format", "json", test_image],
+        f"Image scan for {test_image}",
+    )
+    assert scanner.raw_result is not None
+    assert "Results" in scanner.raw_result
+    assert len(scanner.raw_result["Results"]) == 1
+    assert scanner.error == ""
+
+
+def test_scan_image_no_image(test_sbom_path):
+    """Test scan_image fails without image."""
+    scanner = TrivyScanner(sbom=test_sbom_path)
+    with pytest.raises(ValueError, match="You must set the image to scan"):
+        scanner.scan_image()
+
+
+@patch.object(TrivyScanner, "_run_trivy_command")
+def test_scan_image_json_decode_error(mock_run_command, test_image):
+    """Test scan_image handles JSON decode error."""
+    scanner = TrivyScanner(image=test_image)
+    mock_result = MagicMock()
+    mock_result.stdout = "invalid json"
+    mock_run_command.return_value = mock_result
+
+    scanner.scan_image()
+
+    assert "Error parsing Trivy output" in scanner.error
+    assert scanner.raw_result is None
+
+
+@patch.object(TrivyScanner, "_run_trivy_command")
+def test_scan_image_command_failure(mock_run_command, test_image):
+    """Test scan_image handles command failure."""
+    scanner = TrivyScanner(image=test_image)
+    mock_run_command.side_effect = subprocess.CalledProcessError(1, ["trivy"])
+
+    scanner.scan_image()
+
+    # Should not raise exception, error should be stored
+    assert scanner.raw_result is None
