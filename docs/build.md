@@ -106,7 +106,7 @@ pip install -e ./diffusedcli
 
 ## Important Notes
 
-- **Python Version**: Both packages require Python >=3.12
+- **Python Version**: Both packages require Python >=3.9
 - **License**: Apache-2.0
 - **Build Backend**: Both packages use hatchling for building
 - **Dependencies**: CLI package automatically installs the library package

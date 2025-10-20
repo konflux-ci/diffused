@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.12"]
+        python-version: ["3.9"]
 
     steps:
     - uses: actions/checkout@v4
@@ -28,31 +28,31 @@ jobs:
         pip install tox
 
     - name: Run black
-      run: tox -e black
+      run: tox -e py39-black
 
     - name: Run flake8
-      run: tox -e flake8
+      run: tox -e py39-flake8
 
     - name: Run isort
-      run: tox -e isort
+      run: tox -e py39-isort
 
     - name: Run mypy
-      run: tox -e mypy
+      run: tox -e py39-mypy
 
     - name: Run pytest
-      run: tox -e pytest
+      run: tox -e py39-pytest
 
     - name: Run pytest-cli
-      run: tox -e pytest-cli
+      run: tox -e py39-pytest-cli
 
     - name: Run build-lib
-      run: tox -e build-lib
+      run: tox -e py39-build-lib
 
     - name: Run build-cli
-      run: tox -e build-cli
+      run: tox -e py39-build-cli
 
     - name: Upload coverage to Codecov
-      if: matrix.python-version == '3.12'
+      if: matrix.python-version == '3.9'
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
