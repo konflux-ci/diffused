@@ -21,9 +21,19 @@ class ACSScanner(BaseScanner):
 
     def _validate_environment(self) -> None:
         """Validates required environment variables are set."""
-        if not os.getenv("ROX_ENDPOINT") or not os.getenv("ROX_API_TOKEN"):
+        rox_endpoint = os.getenv("ROX_ENDPOINT")
+        rox_api_token = os.getenv("ROX_API_TOKEN")
+        rox_config_dir = os.getenv("ROX_CONFIG_DIR")
+
+        if not rox_endpoint:
+            error_message = "ROX_ENDPOINT must be set in the environment variables."
+            logger.error(error_message)
+            self.error = error_message
+            raise ValueError(error_message)
+
+        if not rox_api_token and not rox_config_dir:
             error_message = (
-                "ROX_ENDPOINT and ROX_API_TOKEN must be set in the environment variables."
+                "ROX_API_TOKEN or ROX_CONFIG_DIR must be set in the environment variables."
             )
             logger.error(error_message)
             self.error = error_message

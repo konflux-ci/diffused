@@ -23,7 +23,8 @@ ROXCTL_SBOM_ARGS = ROXCTL_BASE_ARGS + ["image", "sbom"]
 ROXCTL_SCAN_ARGS = ROXCTL_BASE_ARGS + ["image", "scan", "--output", "json"]
 
 # Error message patterns
-MISSING_ENV_VARS_ERROR = "ROX_ENDPOINT and ROX_API_TOKEN must be set in the environment variables"
+MISSING_ENDPOINT_ERROR = "ROX_ENDPOINT must be set in the environment variables"
+MISSING_AUTH_ERROR = "ROX_API_TOKEN or ROX_CONFIG_DIR must be set in the environment variables"
 MISSING_IMAGE_ERROR = "You must set the image to retrieve the SBOM"
 MISSING_OUTPUT_FILE_ERROR = "You must set the output_file with a valid path"
 MISSING_IMAGE_SCAN_ERROR = "You must set the image to scan"
@@ -93,6 +94,12 @@ def test_initialization_succeeds_with_both_image_and_sbom(rox_env, test_image, t
     assert scanner.sbom == test_sbom_path
 
 
+def test_initialization_succeeds_with_rox_config_dir(rox_config_dir_env, test_image):
+    """Test ACSScanner initializes successfully when ROX_CONFIG_DIR is set instead of ROX_API_TOKEN."""
+    scanner = create_scanner_with_image(test_image)
+    assert_default_scanner_state(scanner, expected_image=test_image)
+
+
 def test_initialization_fails_when_neither_image_nor_sbom_provided():
     """Test ACSScanner initialization raises ValueError when neither image nor SBOM is provided."""
     with pytest.raises(ValueError, match="You must set sbom or image"):
@@ -100,17 +107,20 @@ def test_initialization_fails_when_neither_image_nor_sbom_provided():
 
 
 @pytest.mark.parametrize(
-    "env_vars",
+    "env_vars,expected_error",
     [
-        {},  # Missing both variables
-        {"ROX_API_TOKEN": "test-token"},  # Missing ROX_ENDPOINT
-        {"ROX_ENDPOINT": "https://localhost:8443"},  # Missing ROX_API_TOKEN
+        ({}, MISSING_ENDPOINT_ERROR),  # Missing both variables
+        ({"ROX_API_TOKEN": "test-token"}, MISSING_ENDPOINT_ERROR),  # Missing ROX_ENDPOINT
+        ({"ROX_CONFIG_DIR": "/path/to/config"}, MISSING_ENDPOINT_ERROR),  # Missing ROX_ENDPOINT
+        ({"ROX_ENDPOINT": "https://localhost:8443"}, MISSING_AUTH_ERROR),  # Missing auth
     ],
 )
-def test_initialization_fails_with_missing_environment_variables(env_vars, test_image):
+def test_initialization_fails_with_missing_environment_variables(
+    env_vars, expected_error, test_image
+):
     """Test ACSScanner initialization fails when ROX environment variables are missing."""
     with patch.dict("os.environ", env_vars, clear=True):
-        with pytest.raises(ValueError, match=MISSING_ENV_VARS_ERROR):
+        with pytest.raises(ValueError, match=expected_error):
             ACSScanner(image=test_image)
 
 
