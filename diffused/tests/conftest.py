@@ -15,6 +15,16 @@ def rox_env():
 
 
 @pytest.fixture
+def rox_config_dir_env():
+    """Fixture to provide valid ROX environment variables using ROX_CONFIG_DIR."""
+    with patch.dict(
+        "os.environ",
+        {"ROX_ENDPOINT": "https://localhost:8443", "ROX_CONFIG_DIR": "/path/to/config"},
+    ):
+        yield
+
+
+@pytest.fixture
 def test_image():
     """Fixture to provide a consistent test image name."""
     return "test-image:latest"
