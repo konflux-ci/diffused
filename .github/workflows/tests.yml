@@ -51,11 +51,23 @@ jobs:
     - name: Run build-cli
       run: tox -e py39-build-cli
 
-    - name: Upload coverage to Codecov
+    - name: Upload library coverage to Codecov
       if: matrix.python-version == '3.9'
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
+        flags: unit-tests
+        files: coverage.xml
+        fail_ci_if_error: false
+
+    - name: Upload CLI coverage to Codecov
+      if: matrix.python-version == '3.9'
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        flags: cli-tests
+        files: coverage-cli.xml
+        fail_ci_if_error: false
 
   commitlint:
     name: Conventional Commit Lint
