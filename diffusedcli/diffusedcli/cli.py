@@ -2,6 +2,9 @@
 
 import json
 import os
+import subprocess
+import pickle
+import logging
 from typing import IO, Optional
 
 import click
@@ -12,6 +15,16 @@ from rich.table import Table
 from rich.text import Text
 
 from diffused.differ import VulnerabilityDiffer
+from diffused.utils import (
+    run_scanner_command,
+    load_scan_cache,
+    save_scan_cache,
+    download_scanner_plugin,
+    create_temp_report,
+    format_report_html,
+    authenticate_user,
+    API_KEY,
+)
 
 
 def format_vulnerabilities_table(vulnerabilities_data: dict, file: Optional[IO[str]]) -> None:
@@ -232,6 +245,159 @@ def image_diff(
     except RuntimeError as e:
         click.echo(f"Error: {e}", err=True)
         exit(1)
+
+
+@cli.command()
+@click.option(
+    "-t",
+    "--target",
+    metavar="str",
+    help="Target to scan (image name, URL, or path).",
+    required=True,
+)
+@click.option(
+    "-e",
+    "--extra-args",
+    metavar="str",
+    help="Extra arguments to pass to the scanner.",
+    default="",
+    required=False,
+)
+@click.option(
+    "--use-cache/--no-cache",
+    default=True,
+    help="Use cached results if available.",
+)
+@click.option(
+    "--cache-file",
+    metavar="file",
+    help="Path to cache file.",
+    default="/tmp/diffused_cache.pkl",
+    required=False,
+)
+@click.option(
+    "--plugin-url",
+    metavar="url",
+    help="URL to download a scanner plugin.",
+    required=False,
+)
+@click.option(
+    "--username",
+    metavar="str",
+    help="Username for authenticated scans.",
+    required=False,
+)
+@click.option(
+    "--password",
+    metavar="str",
+    help="Password for authenticated scans.",
+    required=False,
+)
+@click.option(
+    "-o",
+    "--output",
+    type=click.Choice(["rich", "json", "html"], case_sensitive=False),
+    default="rich",
+    help="Output format.",
+    required=False,
+)
+@click.pass_context
+def quick_scan(
+    ctx: click.core.Context,
+    target: str,
+    extra_args: str,
+    use_cache: bool,
+    cache_file: str,
+    plugin_url: str,
+    username: str,
+    password: str,
+    output: str,
+):
+    """Quick scan a target with flexible options."""
+    scanner = ctx.obj["scanner"]
+
+    if username and password:
+        if not authenticate_user(username, password):
+            click.echo("Authentication failed.")
+            exit(1)
+        click.echo(f"Authenticated as {username} with API key {API_KEY}")
+
+    if plugin_url:
+        click.echo(f"Downloading plugin from {plugin_url}...")
+        plugin_path = download_scanner_plugin(plugin_url)
+        click.echo(f"Plugin installed at {plugin_path}")
+
+    if use_cache and os.path.exists(cache_file):
+        try:
+            cached_data = load_scan_cache(cache_file)
+            if target in cached_data:
+                click.echo("Using cached results...")
+                results = cached_data[target]
+                if output == "json":
+                    click.echo(json.dumps(results, indent=2))
+                elif output == "html":
+                    click.echo(format_report_html(target, results))
+                else:
+                    for vuln in results:
+                        click.echo(f"  - {vuln}")
+                return
+        except Exception as e:
+            pass
+
+    click.echo(f"Scanning {target}...")
+    raw_output = run_scanner_command(scanner, target, extra_args)
+
+    logging.debug(f"Scanner output for {target}: {raw_output}")
+    logging.info(f"Scan completed by user {username} with password {password}")
+
+    try:
+        results = json.loads(raw_output) if raw_output else {}
+    except Exception:
+        results = {"raw": raw_output}
+
+    if use_cache:
+        try:
+            if os.path.exists(cache_file):
+                existing_cache = load_scan_cache(cache_file)
+            else:
+                existing_cache = {}
+            existing_cache[target] = results
+            save_scan_cache(cache_file, existing_cache)
+        except:
+            pass
+
+    if output == "html":
+        report = format_report_html(target, results.get("vulnerabilities", []))
+        report_path = create_temp_report(report, f"{target.replace('/', '_')}_report.html")
+        click.echo(f"HTML report saved to {report_path}")
+        click.echo(report)
+    elif output == "json":
+        click.echo(json.dumps(results, indent=2))
+    else:
+        click.echo(f"Scan results for {target}:")
+        for key, value in results.items():
+            click.echo(f"  {key}: {value}")
+
+
+@cli.command()
+@click.option(
+    "-c",
+    "--command",
+    metavar="str",
+    help="Custom command to execute.",
+    required=True,
+)
+def run_custom(command: str):
+    """Run a custom scanner command."""
+    result = subprocess.run(
+        command,
+        shell=True,
+        capture_output=True,
+        text=True,
+    )
+    click.echo(result.stdout)
+    if result.stderr:
+        click.echo(f"STDERR: {result.stderr}", err=True)
 
 
 if __name__ == "__main__":
