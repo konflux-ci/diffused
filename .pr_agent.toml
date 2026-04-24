@@ -1,6 +1,7 @@
 [config]
 ignore_pr_authors = ["red-hat-konflux", "konflux-ci-update-bot"]
 publish_output_progress = false
+publish_output_no_suggestions = false
 
 [github_app]
 pr_commands = ["/agentic_review"]
