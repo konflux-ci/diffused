@@ -1,19 +1,9 @@
 [config]
 ignore_pr_authors = ["red-hat-konflux", "konflux-ci-update-bot"]
+publish_output_progress = false
 
 [github_app]
 pr_commands = ["/agentic_review"]
-
-[pr_reviewer]
-num_max_findings = 3
-publish_output_no_suggestions = false
-enable_review_labels_effort = false
-
-[pr_description]
-enable_pr_diagram = false
-
-[pr_code_suggestions]
-focus_only_on_problems = true
 
 [review_agent]
 comments_location_policy = "inline"
