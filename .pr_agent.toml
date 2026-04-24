@@ -1,0 +1,30 @@
+[config]
+ignore_pr_authors = ["red-hat-konflux", "konflux-ci-update-bot"]
+
+[github_app]
+pr_commands = ["/agentic_review"]
+
+[pr_reviewer]
+num_max_findings = 3
+publish_output_no_suggestions = false
+enable_review_labels_effort = false
+
+[pr_description]
+enable_pr_diagram = false
+
+[pr_code_suggestions]
+focus_only_on_problems = true
+
+[review_agent]
+comments_location_policy = "inline"
+inline_comments_severity_threshold = 2
+issues_user_guidelines = """
+Do not comment on unused imports, import ordering, or issues that flake8/pytest would catch.
+Focus on security vulnerabilities, logic errors, and design issues.
+"""
+
+[review_agent_ux]
+expand_code = true
+expand_description = false
+expand_relevance = false
+expand_evidence = false
