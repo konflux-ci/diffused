@@ -2,9 +2,6 @@
 ignore_pr_authors = ["red-hat-konflux", "konflux-ci-update-bot"]
 publish_output_progress = false
 
-[github_app]
-pr_commands = ["/agentic_review"]
-
 [review_agent]
 comments_location_policy = "inline"
 inline_comments_severity_threshold = 2
