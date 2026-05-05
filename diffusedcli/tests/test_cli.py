@@ -399,7 +399,7 @@ def test_sbom_diff_with_acs_scanner_error(runner, test_previous_sbom_path, test_
     )
 
     assert result.exit_code == 1
-    assert "Error: Only 'trivy' scanner is supported for SBOM scanning, got 'acs'" in result.output
+    assert "Error: SBOM scanning is not supported by the 'acs' scanner" in result.output
 
 
 def test_sbom_diff_scanner_case_insensitive(runner, test_previous_sbom_path, test_next_sbom_path):
