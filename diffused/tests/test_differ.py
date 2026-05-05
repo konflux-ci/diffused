@@ -431,7 +431,8 @@ def test_integration_workflow(test_previous_sbom_path, test_next_sbom_path):
 def test_init_with_invalid_scanner(test_previous_sbom_path, test_next_sbom_path):
     """Test VulnerabilityDiffer initialization with invalid scanner."""
     with pytest.raises(
-        ValueError, match="Unsupported scanner: invalid. Supported scanners: \\['acs', 'trivy'\\]"
+        ValueError,
+        match="Unsupported scanner: invalid. Supported scanners: \\['acs', 'grype', 'trivy'\\]",
     ):
         VulnerabilityDiffer(
             previous_sbom=test_previous_sbom_path,

@@ -69,7 +69,7 @@ def format_vulnerabilities_list(vulnerabilities_list: list, file: Optional[IO[st
 @click.option(
     "-s",
     "--scanner",
-    type=click.Choice(["acs", "trivy"], case_sensitive=False),
+    type=click.Choice(["acs", "grype", "trivy"], case_sensitive=False),
     default="trivy",
     help="Scanner to use for vulnerability detection (default=trivy).",
     required=False,
@@ -138,9 +138,9 @@ def sbom_diff(
     """Show the vulnerability diff between two SBOMs."""
     scanner = ctx.obj["scanner"]
 
-    # Only trivy is supported for SBOM scanning
-    if scanner != "trivy":
-        click.echo(f"Error: Only 'trivy' scanner is supported for SBOM scanning, got '{scanner}'")
+    # ACS does not support SBOM scanning
+    if scanner == "acs":
+        click.echo("Error: SBOM scanning is not supported by the 'acs' scanner")
         exit(1)
 
     if not os.path.isfile(previous_sbom):
