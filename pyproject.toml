@@ -70,4 +70,4 @@ homepage = "https://github.com/konflux-ci/diffused"
 diffused = "diffusedcli.cli:cli"
 
 [tool.hatch.build.targets.wheel]
-packages = ["diffused", "diffusedcli"]
+packages = ["diffused/diffused", "diffusedcli/diffusedcli"]
