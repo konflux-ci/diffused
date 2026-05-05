@@ -5,6 +5,7 @@ import logging
 from typing import Dict, List, Optional, Union
 
 from diffused.scanners.acs import ACSScanner
+from diffused.scanners.grype import GrypeScanner
 from diffused.scanners.trivy import TrivyScanner
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,7 @@ class VulnerabilityDiffer:
         """Get the scanner class based on the scanner name."""
         scanner_map = {
             "acs": ACSScanner,
+            "grype": GrypeScanner,
             "trivy": TrivyScanner,
         }
 
