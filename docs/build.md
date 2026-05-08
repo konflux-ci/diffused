@@ -45,8 +45,8 @@ python -m build
 ```
 
 This creates distribution files in `diffused/dist/`:
-- `diffused_lib-0.1.0.tar.gz` (source distribution)
-- `diffused_lib-0.1.0-py3-none-any.whl` (wheel distribution)
+- `diffused_lib-<version>.tar.gz` (source distribution)
+- `diffused_lib-<version>-py3-none-any.whl` (wheel distribution)
 
 #### CLI Package
 
@@ -56,8 +56,8 @@ python -m build
 ```
 
 This creates distribution files in `diffusedcli/dist/`:
-- `diffusedcli-0.1.0.tar.gz` (source distribution)
-- `diffusedcli-0.1.0-py3-none-any.whl` (wheel distribution)
+- `diffused_cli-<version>.tar.gz` (source distribution)
+- `diffused_cli-<version>-py3-none-any.whl` (wheel distribution)
 
 ## Clean Builds
 

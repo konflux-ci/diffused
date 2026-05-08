@@ -1,6 +1,6 @@
 # Diffused
 
-A vulnerability scan diffing tool for container images and SBOMs (Software Bill of Materials). Diffused helps track security improvements and regressions between different versions of container images by comparing vulnerability scan results from SBOMs.
+A vulnerability scan diffing tool for container images and SBOMs (Software Bill of Materials). Diffused finds fixed vulnerabilities between different versions of container images by comparing vulnerability scan results.
 
 Its name comes from the pun `diff + used`, which means it performs the diffing of both results.
 
