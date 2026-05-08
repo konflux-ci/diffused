@@ -45,6 +45,9 @@ jobs:
     - name: Run pytest-cli
       run: tox -e py39-pytest-cli
 
+    - name: Run pytest-repo
+      run: tox -e py39-pytest-repo
+
     - name: Run build-lib
       run: tox -e py39-build-lib
 
