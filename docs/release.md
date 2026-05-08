@@ -49,10 +49,10 @@ Before creating a new release:
 1. **Update the version** in both `pyproject.toml` files:
    ```toml
    # diffused/pyproject.toml
-   version = "0.1.1"  # Increment appropriately
+   version = "X.Y.Z"  # Increment appropriately
 
    # diffusedcli/pyproject.toml
-   version = "0.1.1"  # Keep in sync with library
+   version = "X.Y.Z"  # Keep in sync with library
    ```
 
 2. **Follow semantic versioning:**

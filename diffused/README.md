@@ -84,7 +84,7 @@ trivy_differ = VulnerabilityDiffer(
     scan_type="image"
 )
 
-# Use ACS scanner (requires ROX_ENDPOINT and ROX_API_TOKEN environment variables)
+# Use ACS scanner (requires ROX_ENDPOINT and either ROX_API_TOKEN or ROX_CONFIG_DIR)
 acs_differ = VulnerabilityDiffer(
     previous_image="nginx:1.20",
     next_image="nginx:1.21",
