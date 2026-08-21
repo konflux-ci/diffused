@@ -147,6 +147,18 @@ podman run --rm \
   -e ROX_ENDPOINT=$ROX_ENDPOINT \
   -e ROX_API_TOKEN=$ROX_API_TOKEN \
   diffused:latest image-diff -p app:v1 -n app:v2 --output json -f /app/output/report.json
+
+# Report newly introduced vulnerabilities
+podman run --rm \
+  -e ROX_ENDPOINT=$ROX_ENDPOINT \
+  -e ROX_API_TOKEN=$ROX_API_TOKEN \
+  diffused:latest image-diff -p app:v1.0 -n app:v2.0 --show new
+
+# Report both fixed and new vulnerabilities
+podman run --rm \
+  -e ROX_ENDPOINT=$ROX_ENDPOINT \
+  -e ROX_API_TOKEN=$ROX_API_TOKEN \
+  diffused:latest image-diff -p app:v1.0 -n app:v2.0 --show all
 ```
 
 ### SBOM Comparison
@@ -162,6 +174,16 @@ podman run --rm \
   -v $(pwd):/data \
   -v $(pwd)/output:/app/output \
   diffused:latest sbom-diff -p /data/old.json -n /data/new.json --all-info --output json -f /app/output/diff.json
+
+# Report newly introduced vulnerabilities
+podman run --rm \
+  -v $(pwd):/data \
+  diffused:latest sbom-diff -p /data/previous.json -n /data/current.json --show new
+
+# Report both fixed and new vulnerabilities
+podman run --rm \
+  -v $(pwd):/data \
+  diffused:latest sbom-diff -p /data/previous.json -n /data/current.json --show all
 ```
 
 ### Scanner Selection at Runtime
