@@ -2,6 +2,7 @@
 
 import json
 import sys
+from io import StringIO
 from unittest.mock import MagicMock, patch
 
 # Mock the diffused module before importing the CLI
@@ -317,6 +318,18 @@ def test_format_vulnerabilities_list_with_data(
     mock_console_instance.print.assert_called_once()
 
 
+def test_format_vulnerabilities_list_renders_label_in_title(sample_new_vulnerabilities_list):
+    """Test format_vulnerabilities_list renders the given label into the rendered panel title."""
+    buffer = StringIO()
+
+    format_vulnerabilities_list(
+        sample_new_vulnerabilities_list, buffer, label="New Vulnerabilities"
+    )
+
+    # the label must actually reach the rendered output, not just the call signature
+    assert "New Vulnerabilities (2 total)" in buffer.getvalue()
+
+
 @patch("diffusedcli.cli.Console")
 @patch("diffusedcli.cli.Table")
 def test_format_vulnerabilities_table(mock_table, mock_console, sample_vulnerabilities_all_info):
@@ -329,7 +342,7 @@ def test_format_vulnerabilities_table(mock_table, mock_console, sample_vulnerabi
     format_vulnerabilities_table(sample_vulnerabilities_all_info, None)
 
     # verify table was created and configured
-    mock_table.assert_called_once_with(title="Vulnerability Differences")
+    mock_table.assert_called_once_with(title="Fixed Vulnerability Differences")
     assert mock_table_instance.add_column.call_count == 5  # 5 columns
     assert mock_table_instance.add_row.call_count == 2  # 2 packages in test data
     mock_console_instance.print.assert_called_once_with(mock_table_instance)
@@ -591,6 +604,578 @@ def test_image_diff_runtime_error(mock_differ, runner, test_previous_image, test
 
     assert result.exit_code == 1
     assert "Error: Scanner failed" in result.output
+
+
+@patch("diffusedcli.cli.os.path.isfile")
+@patch("diffusedcli.cli.VulnerabilityDiffer")
+def test_sbom_diff_show_new_runtime_error(
+    mock_differ, mock_isfile, runner, test_previous_sbom_path, test_next_sbom_path
+):
+    """Test sbom_diff --show new surfaces a RuntimeError from the new-vulnerabilities property."""
+    mock_isfile.return_value = True
+    mock_differ_instance = MagicMock()
+    # the new-vulnerabilities path must handle scanner failures like the fixed path does
+    type(mock_differ_instance).new_vulnerabilities = property(
+        MagicMock(side_effect=RuntimeError("Scanner failed"))
+    )
+    mock_differ.return_value = mock_differ_instance
+
+    result = runner.invoke(
+        cli,
+        ["sbom-diff", "-p", test_previous_sbom_path, "-n", test_next_sbom_path, "--show", "new"],
+    )
+
+    assert result.exit_code == 1
+    assert "Error: Scanner failed" in result.output
+
+
+@patch("diffusedcli.cli.os.path.isfile")
+@patch("diffusedcli.cli.VulnerabilityDiffer")
+def test_sbom_diff_show_all_runtime_error(
+    mock_differ,
+    mock_isfile,
+    runner,
+    sample_vulnerabilities_list,
+    test_previous_sbom_path,
+    test_next_sbom_path,
+):
+    """Test sbom_diff --show all surfaces a RuntimeError raised while gathering new vulnerabilities."""
+    mock_isfile.return_value = True
+    mock_differ_instance = MagicMock()
+    mock_differ_instance.vulnerabilities_diff = sample_vulnerabilities_list
+    type(mock_differ_instance).new_vulnerabilities = property(
+        MagicMock(side_effect=RuntimeError("Scanner failed"))
+    )
+    mock_differ.return_value = mock_differ_instance
+
+    result = runner.invoke(
+        cli,
+        [
+            "sbom-diff",
+            "-p",
+            test_previous_sbom_path,
+            "-n",
+            test_next_sbom_path,
+            "--show",
+            "all",
+            "-o",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Error: Scanner failed" in result.output
+
+
+@patch("diffusedcli.cli.os.path.isfile")
+@patch("diffusedcli.cli.VulnerabilityDiffer")
+def test_sbom_diff_show_new_json(
+    mock_differ,
+    mock_isfile,
+    runner,
+    sample_new_vulnerabilities_list,
+    test_previous_sbom_path,
+    test_next_sbom_path,
+):
+    """Test sbom_diff --show new reports the new vulnerabilities."""
+    mock_isfile.return_value = True
+    mock_differ_instance = MagicMock()
+    mock_differ_instance.new_vulnerabilities = sample_new_vulnerabilities_list
+    mock_differ.return_value = mock_differ_instance
+
+    result = runner.invoke(
+        cli,
+        [
+            "sbom-diff",
+            "-p",
+            test_previous_sbom_path,
+            "-n",
+            test_next_sbom_path,
+            "--show",
+            "new",
+            "-o",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    output_data = json.loads(result.output.strip())
+    assert output_data == sample_new_vulnerabilities_list
+
+
+@patch("diffusedcli.cli.os.path.isfile")
+@patch("diffusedcli.cli.VulnerabilityDiffer")
+def test_sbom_diff_show_all_json(
+    mock_differ,
+    mock_isfile,
+    runner,
+    sample_vulnerabilities_list,
+    sample_new_vulnerabilities_list,
+    test_previous_sbom_path,
+    test_next_sbom_path,
+):
+    """Test sbom_diff --show all emits both fixed and new sections."""
+    mock_isfile.return_value = True
+    mock_differ_instance = MagicMock()
+    mock_differ_instance.vulnerabilities_diff = sample_vulnerabilities_list
+    mock_differ_instance.new_vulnerabilities = sample_new_vulnerabilities_list
+    mock_differ.return_value = mock_differ_instance
+
+    result = runner.invoke(
+        cli,
+        [
+            "sbom-diff",
+            "-p",
+            test_previous_sbom_path,
+            "-n",
+            test_next_sbom_path,
+            "--show",
+            "all",
+            "-o",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    output_data = json.loads(result.output.strip())
+    assert output_data == {
+        "fixed": sample_vulnerabilities_list,
+        "new": sample_new_vulnerabilities_list,
+    }
+
+
+@patch("diffusedcli.cli.os.path.isfile")
+@patch("diffusedcli.cli.VulnerabilityDiffer")
+def test_sbom_diff_show_all_json_all_info(
+    mock_differ,
+    mock_isfile,
+    runner,
+    sample_vulnerabilities_all_info,
+    sample_new_vulnerabilities_all_info,
+    test_previous_sbom_path,
+    test_next_sbom_path,
+):
+    """Test sbom_diff --show all --all-info emits both detailed sections."""
+    mock_isfile.return_value = True
+    mock_differ_instance = MagicMock()
+    mock_differ_instance.vulnerabilities_diff_all_info = sample_vulnerabilities_all_info
+    mock_differ_instance.new_vulnerabilities_all_info = sample_new_vulnerabilities_all_info
+    mock_differ.return_value = mock_differ_instance
+
+    result = runner.invoke(
+        cli,
+        [
+            "sbom-diff",
+            "-p",
+            test_previous_sbom_path,
+            "-n",
+            test_next_sbom_path,
+            "--show",
+            "all",
+            "--all-info",
+            "-o",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    output_data = json.loads(result.output.strip())
+    assert output_data == {
+        "fixed": sample_vulnerabilities_all_info,
+        "new": sample_new_vulnerabilities_all_info,
+    }
+
+
+@patch("diffusedcli.cli.os.path.isfile")
+@patch("diffusedcli.cli.VulnerabilityDiffer")
+@patch("diffusedcli.cli.format_vulnerabilities_list")
+def test_sbom_diff_show_new_rich(
+    mock_format_list,
+    mock_differ,
+    mock_isfile,
+    runner,
+    sample_new_vulnerabilities_list,
+    test_previous_sbom_path,
+    test_next_sbom_path,
+):
+    """Test sbom_diff --show new rich output uses the New Vulnerabilities label."""
+    mock_isfile.return_value = True
+    mock_differ_instance = MagicMock()
+    mock_differ_instance.new_vulnerabilities = sample_new_vulnerabilities_list
+    mock_differ.return_value = mock_differ_instance
+
+    result = runner.invoke(
+        cli,
+        ["sbom-diff", "-p", test_previous_sbom_path, "-n", test_next_sbom_path, "--show", "new"],
+    )
+
+    assert result.exit_code == 0
+    assert mock_format_list.call_count == 1
+    args, kwargs = mock_format_list.call_args
+    assert args[0] == sample_new_vulnerabilities_list
+    assert kwargs["label"] == "New Vulnerabilities"
+
+
+@patch("diffusedcli.cli.VulnerabilityDiffer")
+def test_image_diff_show_new_json(
+    mock_differ,
+    runner,
+    sample_new_vulnerabilities_list,
+    test_previous_image,
+    test_next_image,
+):
+    """Test image_diff --show new reports the new vulnerabilities."""
+    mock_differ_instance = MagicMock()
+    mock_differ_instance.new_vulnerabilities = sample_new_vulnerabilities_list
+    mock_differ.return_value = mock_differ_instance
+
+    result = runner.invoke(
+        cli,
+        [
+            "image-diff",
+            "-p",
+            test_previous_image,
+            "-n",
+            test_next_image,
+            "--show",
+            "new",
+            "-o",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    output_data = json.loads(result.output.strip())
+    assert output_data == sample_new_vulnerabilities_list
+
+
+@patch("diffusedcli.cli.VulnerabilityDiffer")
+def test_image_diff_show_all_json(
+    mock_differ,
+    runner,
+    sample_vulnerabilities_list,
+    sample_new_vulnerabilities_list,
+    test_previous_image,
+    test_next_image,
+):
+    """Test image_diff --show all emits both fixed and new sections."""
+    mock_differ_instance = MagicMock()
+    mock_differ_instance.vulnerabilities_diff = sample_vulnerabilities_list
+    mock_differ_instance.new_vulnerabilities = sample_new_vulnerabilities_list
+    mock_differ.return_value = mock_differ_instance
+
+    result = runner.invoke(
+        cli,
+        [
+            "image-diff",
+            "-p",
+            test_previous_image,
+            "-n",
+            test_next_image,
+            "--show",
+            "all",
+            "-o",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    output_data = json.loads(result.output.strip())
+    assert output_data == {
+        "fixed": sample_vulnerabilities_list,
+        "new": sample_new_vulnerabilities_list,
+    }
+
+
+@patch("diffusedcli.cli.os.path.isfile")
+@patch("diffusedcli.cli.VulnerabilityDiffer")
+@patch("diffusedcli.cli.format_vulnerabilities_list")
+def test_sbom_diff_show_all_rich(
+    mock_format_list,
+    mock_differ,
+    mock_isfile,
+    runner,
+    sample_vulnerabilities_list,
+    sample_new_vulnerabilities_list,
+    test_previous_sbom_path,
+    test_next_sbom_path,
+):
+    """Test sbom_diff --show all rich output renders both fixed and new sections."""
+    mock_isfile.return_value = True
+    mock_differ_instance = MagicMock()
+    mock_differ_instance.vulnerabilities_diff = sample_vulnerabilities_list
+    mock_differ_instance.new_vulnerabilities = sample_new_vulnerabilities_list
+    mock_differ.return_value = mock_differ_instance
+
+    result = runner.invoke(
+        cli,
+        ["sbom-diff", "-p", test_previous_sbom_path, "-n", test_next_sbom_path, "--show", "all"],
+    )
+
+    assert result.exit_code == 0
+    # both sections rendered, in order, with distinct labels
+    assert mock_format_list.call_count == 2
+    first_call, second_call = mock_format_list.call_args_list
+    assert first_call.args[0] == sample_vulnerabilities_list
+    assert first_call.kwargs["label"] == "Fixed Vulnerabilities"
+    assert second_call.args[0] == sample_new_vulnerabilities_list
+    assert second_call.kwargs["label"] == "New Vulnerabilities"
+
+
+@patch("diffusedcli.cli.os.path.isfile")
+@patch("diffusedcli.cli.VulnerabilityDiffer")
+@patch("diffusedcli.cli.format_vulnerabilities_table")
+def test_sbom_diff_show_new_rich_all_info(
+    mock_format_table,
+    mock_differ,
+    mock_isfile,
+    runner,
+    sample_new_vulnerabilities_all_info,
+    test_previous_sbom_path,
+    test_next_sbom_path,
+):
+    """Test sbom_diff --show new --all-info wires the new-direction metadata into the table."""
+    mock_isfile.return_value = True
+    mock_differ_instance = MagicMock()
+    mock_differ_instance.new_vulnerabilities_all_info = sample_new_vulnerabilities_all_info
+    mock_differ.return_value = mock_differ_instance
+
+    result = runner.invoke(
+        cli,
+        [
+            "sbom-diff",
+            "-p",
+            test_previous_sbom_path,
+            "-n",
+            test_next_sbom_path,
+            "--show",
+            "new",
+            "--all-info",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert mock_format_table.call_count == 1
+    args, kwargs = mock_format_table.call_args
+    assert args[0] == sample_new_vulnerabilities_all_info
+    assert kwargs["title"] == "New Vulnerability Differences"
+    assert kwargs["change_key"] == "added"
+    assert kwargs["change_label"] == "Added"
+
+
+@patch("diffusedcli.cli.os.path.isfile")
+@patch("diffusedcli.cli.VulnerabilityDiffer")
+@patch("diffusedcli.cli.format_vulnerabilities_table")
+def test_sbom_diff_show_all_rich_all_info(
+    mock_format_table,
+    mock_differ,
+    mock_isfile,
+    runner,
+    sample_vulnerabilities_all_info,
+    sample_new_vulnerabilities_all_info,
+    test_previous_sbom_path,
+    test_next_sbom_path,
+):
+    """Test sbom_diff --show all --all-info rich output renders both detailed tables."""
+    mock_isfile.return_value = True
+    mock_differ_instance = MagicMock()
+    mock_differ_instance.vulnerabilities_diff_all_info = sample_vulnerabilities_all_info
+    mock_differ_instance.new_vulnerabilities_all_info = sample_new_vulnerabilities_all_info
+    mock_differ.return_value = mock_differ_instance
+
+    result = runner.invoke(
+        cli,
+        [
+            "sbom-diff",
+            "-p",
+            test_previous_sbom_path,
+            "-n",
+            test_next_sbom_path,
+            "--show",
+            "all",
+            "--all-info",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert mock_format_table.call_count == 2
+    first_call, second_call = mock_format_table.call_args_list
+    assert first_call.args[0] == sample_vulnerabilities_all_info
+    assert first_call.kwargs["title"] == "Fixed Vulnerability Differences"
+    assert first_call.kwargs["change_key"] == "removed"
+    assert second_call.args[0] == sample_new_vulnerabilities_all_info
+    assert second_call.kwargs["title"] == "New Vulnerability Differences"
+    assert second_call.kwargs["change_key"] == "added"
+
+
+@patch("diffusedcli.cli.VulnerabilityDiffer")
+@patch("diffusedcli.cli.format_vulnerabilities_list")
+def test_image_diff_show_new_rich(
+    mock_format_list,
+    mock_differ,
+    runner,
+    sample_new_vulnerabilities_list,
+    test_previous_image,
+    test_next_image,
+):
+    """Test image_diff --show new rich output uses the New Vulnerabilities label."""
+    mock_differ_instance = MagicMock()
+    mock_differ_instance.new_vulnerabilities = sample_new_vulnerabilities_list
+    mock_differ.return_value = mock_differ_instance
+
+    result = runner.invoke(
+        cli,
+        ["image-diff", "-p", test_previous_image, "-n", test_next_image, "--show", "new"],
+    )
+
+    assert result.exit_code == 0
+    assert mock_format_list.call_count == 1
+    args, kwargs = mock_format_list.call_args
+    assert args[0] == sample_new_vulnerabilities_list
+    assert kwargs["label"] == "New Vulnerabilities"
+
+
+@patch("diffusedcli.cli.VulnerabilityDiffer")
+@patch("diffusedcli.cli.format_vulnerabilities_list")
+def test_image_diff_show_all_rich(
+    mock_format_list,
+    mock_differ,
+    runner,
+    sample_vulnerabilities_list,
+    sample_new_vulnerabilities_list,
+    test_previous_image,
+    test_next_image,
+):
+    """Test image_diff --show all rich output renders both fixed and new sections."""
+    mock_differ_instance = MagicMock()
+    mock_differ_instance.vulnerabilities_diff = sample_vulnerabilities_list
+    mock_differ_instance.new_vulnerabilities = sample_new_vulnerabilities_list
+    mock_differ.return_value = mock_differ_instance
+
+    result = runner.invoke(
+        cli,
+        ["image-diff", "-p", test_previous_image, "-n", test_next_image, "--show", "all"],
+    )
+
+    assert result.exit_code == 0
+    assert mock_format_list.call_count == 2
+    first_call, second_call = mock_format_list.call_args_list
+    assert first_call.args[0] == sample_vulnerabilities_list
+    assert first_call.kwargs["label"] == "Fixed Vulnerabilities"
+    assert second_call.args[0] == sample_new_vulnerabilities_list
+    assert second_call.kwargs["label"] == "New Vulnerabilities"
+
+
+@patch("diffusedcli.cli.Console")
+@patch("diffusedcli.cli.Table")
+def test_format_vulnerabilities_table_new(
+    mock_table, mock_console, sample_new_vulnerabilities_all_info
+):
+    """Test format_vulnerabilities_table renders the added status for new vulnerabilities."""
+    mock_console_instance = MagicMock()
+    mock_console.return_value = mock_console_instance
+    mock_table_instance = MagicMock()
+    mock_table.return_value = mock_table_instance
+
+    format_vulnerabilities_table(
+        sample_new_vulnerabilities_all_info,
+        None,
+        title="New Vulnerability Differences",
+        change_key="added",
+        change_label="Added",
+    )
+
+    mock_table.assert_called_once_with(title="New Vulnerability Differences")
+    # bind each row's status to its package so an inverted flag would fail the test
+    # row layout: (cve_id, package_name, previous_version, new_version, status)
+    status_by_package = {
+        call.args[1]: call.args[4] for call in mock_table_instance.add_row.call_args_list
+    }
+    # package3 is absent from the previous SBOM (added=True) → "Added"
+    assert status_by_package["package3"] == "Added"
+    # package1 is present in both releases (added=False) → "Updated"
+    assert status_by_package["package1"] == "Updated"
+
+
+def test_invalid_show_value(runner, test_previous_sbom_path, test_next_sbom_path):
+    """Test CLI with invalid --show value."""
+    result = runner.invoke(
+        cli,
+        ["sbom-diff", "-p", test_previous_sbom_path, "-n", test_next_sbom_path, "--show", "bogus"],
+    )
+    assert result.exit_code != 0
+    assert "Invalid value" in result.output
+
+
+@patch("diffusedcli.cli.os.path.isfile")
+@patch("diffusedcli.cli.VulnerabilityDiffer")
+@patch("diffusedcli.cli.format_vulnerabilities_list")
+def test_sbom_diff_show_new_rich_empty(
+    mock_format_list,
+    mock_differ,
+    mock_isfile,
+    runner,
+    test_previous_sbom_path,
+    test_next_sbom_path,
+):
+    """Test sbom_diff --show new renders cleanly when there are no new vulnerabilities."""
+    mock_isfile.return_value = True
+    mock_differ_instance = MagicMock()
+    mock_differ_instance.new_vulnerabilities = []
+    mock_differ.return_value = mock_differ_instance
+
+    result = runner.invoke(
+        cli,
+        ["sbom-diff", "-p", test_previous_sbom_path, "-n", test_next_sbom_path, "--show", "new"],
+    )
+
+    assert result.exit_code == 0
+    assert mock_format_list.call_count == 1
+    args, kwargs = mock_format_list.call_args
+    assert args[0] == []
+    assert kwargs["label"] == "New Vulnerabilities"
+
+
+@patch("diffusedcli.cli.os.path.isfile")
+@patch("diffusedcli.cli.VulnerabilityDiffer")
+def test_sbom_diff_show_case_insensitive(
+    mock_differ,
+    mock_isfile,
+    runner,
+    sample_vulnerabilities_list,
+    sample_new_vulnerabilities_list,
+    test_previous_sbom_path,
+    test_next_sbom_path,
+):
+    """Test that the --show option is case insensitive (ALL normalizes to all)."""
+    mock_isfile.return_value = True
+    mock_differ_instance = MagicMock()
+    mock_differ_instance.vulnerabilities_diff = sample_vulnerabilities_list
+    mock_differ_instance.new_vulnerabilities = sample_new_vulnerabilities_list
+    mock_differ.return_value = mock_differ_instance
+
+    # "ALL" must normalize to "all" — only then does _report emit the {"fixed", "new"} shape
+    result = runner.invoke(
+        cli,
+        [
+            "sbom-diff",
+            "-p",
+            test_previous_sbom_path,
+            "-n",
+            test_next_sbom_path,
+            "--show",
+            "ALL",
+            "-o",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    output_data = json.loads(result.output.strip())
+    assert output_data == {
+        "fixed": sample_vulnerabilities_list,
+        "new": sample_new_vulnerabilities_list,
+    }
 
 
 # the following test throws the following warning on pytest:

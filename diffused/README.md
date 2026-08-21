@@ -5,6 +5,7 @@ The core Python library providing vulnerability scanning and diffing functionali
 ## Features
 
 - 🔍 **Vulnerability Scanning**: Automated scanning of SBOMs using [Trivy](https://trivy.dev/) or scanning of container images using [RHACS](https://www.redhat.com/pt-br/technologies/cloud-computing/openshift/advanced-cluster-security-kubernetes)
+- 🔀 **Fixed & New Vulnerability Detection**: Reports both vulnerabilities fixed and vulnerabilities newly introduced between two versions
 - 📊 **SBOM Diffing**: Direct comparison of SPDX-JSON formatted SBOMs (Trivy only)
 - 📄 **Flexible Output**: Programmatic access to vulnerability data
 - 🐍 **Python API**: Clean, intuitive Python interface
@@ -53,6 +54,13 @@ print(f"Fixed vulnerabilities: {fixed_vulnerabilities}")
 
 # Get detailed information about each fixed vulnerability
 detailed_info = vuln_differ.vulnerabilities_diff_all_info
+
+# Retrieve the vulnerabilities introduced in the next image (list of new CVEs)
+new_vulnerabilities = vuln_differ.new_vulnerabilities
+print(f"New vulnerabilities: {new_vulnerabilities}")
+
+# Get detailed information about each new vulnerability
+new_detailed_info = vuln_differ.new_vulnerabilities_all_info
 ```
 
 #### Comparing SBOMs

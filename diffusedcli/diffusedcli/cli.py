@@ -2,7 +2,7 @@
 
 import json
 import os
-from typing import IO, Optional
+from typing import IO, Optional, Union, cast
 
 import click
 from rich.columns import Columns
@@ -14,11 +14,17 @@ from rich.text import Text
 from diffused.differ import VulnerabilityDiffer
 
 
-def format_vulnerabilities_table(vulnerabilities_data: dict, file: Optional[IO[str]]) -> None:
+def format_vulnerabilities_table(
+    vulnerabilities_data: dict,
+    file: Optional[IO[str]],
+    title: str = "Fixed Vulnerability Differences",
+    change_key: str = "removed",
+    change_label: str = "Removed",
+) -> None:
     """Format vulnerability data as a rich table."""
     console = Console(file=file)
 
-    table = Table(title="Vulnerability Differences")
+    table = Table(title=title)
     table.add_column("CVE ID", style="cyan", no_wrap=True)
     table.add_column("Package", style="magenta")
     table.add_column("Previous Version", style="red")
@@ -28,7 +34,7 @@ def format_vulnerabilities_table(vulnerabilities_data: dict, file: Optional[IO[s
     for cve_id, packages in vulnerabilities_data.items():
         for package_info in packages:
             for package_name, details in package_info.items():
-                status = "Removed" if details["removed"] else "Updated"
+                status = change_label if details[change_key] else "Updated"
                 table.add_row(
                     cve_id,
                     package_name,
@@ -40,7 +46,11 @@ def format_vulnerabilities_table(vulnerabilities_data: dict, file: Optional[IO[s
     console.print(table)
 
 
-def format_vulnerabilities_list(vulnerabilities_list: list, file: Optional[IO[str]]) -> None:
+def format_vulnerabilities_list(
+    vulnerabilities_list: list,
+    file: Optional[IO[str]],
+    label: str = "Fixed Vulnerabilities",
+) -> None:
     """Format vulnerability list as a rich panel with columns."""
 
     console = Console(file=file)
@@ -60,8 +70,66 @@ def format_vulnerabilities_list(vulnerabilities_list: list, file: Optional[IO[st
     # display in columns for better layout
     columns = Columns(cve_items, equal=True, expand=True)
 
-    title = f"Fixed Vulnerabilities ({len(vulnerabilities_list)} total)"
+    title = f"{label} ({len(vulnerabilities_list)} total)"
     console.print(Panel(columns, title=title, border_style="cyan", padding=(1, 1)))
+
+
+# metadata describing how each vulnerability direction is rendered
+_DIRECTIONS = {
+    "fixed": {
+        "list_label": "Fixed Vulnerabilities",
+        "table_title": "Fixed Vulnerability Differences",
+        "change_key": "removed",
+        "change_label": "Removed",
+    },
+    "new": {
+        "list_label": "New Vulnerabilities",
+        "table_title": "New Vulnerability Differences",
+        "change_key": "added",
+        "change_label": "Added",
+    },
+}
+
+
+def _get_data(differ: VulnerabilityDiffer, direction: str, all_info: bool) -> Union[list, dict]:
+    """Return the vulnerability data for the given direction."""
+    if direction == "fixed":
+        return differ.vulnerabilities_diff_all_info if all_info else differ.vulnerabilities_diff
+    return differ.new_vulnerabilities_all_info if all_info else differ.new_vulnerabilities
+
+
+def _report(
+    differ: VulnerabilityDiffer,
+    show: str,
+    output: str,
+    all_info: bool,
+    file: IO[str],
+) -> None:
+    """Render the requested vulnerability report(s) to the output file."""
+    directions = ["fixed", "new"] if show == "all" else [show]
+
+    if output == "json":
+        if show == "all":
+            combined = {d: _get_data(differ, d, all_info) for d in directions}
+            json.dump(combined, file, indent=2)
+        else:
+            json.dump(_get_data(differ, directions[0], all_info), file, indent=2)
+        return
+
+    # rich format
+    for direction in directions:
+        meta = _DIRECTIONS[direction]
+        data = _get_data(differ, direction, all_info)
+        if all_info:
+            format_vulnerabilities_table(
+                cast(dict, data),
+                file,
+                title=meta["table_title"],
+                change_key=meta["change_key"],
+                change_label=meta["change_label"],
+            )
+        else:
+            format_vulnerabilities_list(cast(list, data), file, label=meta["list_label"])
 
 
 # general command configs
@@ -111,6 +179,13 @@ def cli(ctx: click.core.Context, scanner: str) -> None:
     required=False,
 )
 @click.option(
+    "--show",
+    type=click.Choice(["fixed", "new", "all"], case_sensitive=False),
+    default="fixed",
+    help="Which vulnerabilities to report (fixed, new, or all).",
+    required=False,
+)
+@click.option(
     "-o",
     "--output",
     type=click.Choice(["rich", "json"], case_sensitive=False),
@@ -132,6 +207,7 @@ def sbom_diff(
     previous_sbom: str,
     next_sbom: str,
     all_info: bool,
+    show: str,
     output: str,
     file: IO[str],
 ):
@@ -155,16 +231,7 @@ def sbom_diff(
     )
 
     try:
-        if output == "json":
-            if not all_info:
-                json.dump(vuln_differ.vulnerabilities_diff, file, indent=2)
-            else:
-                json.dump(vuln_differ.vulnerabilities_diff_all_info, file, indent=2)
-        else:  # rich format
-            if not all_info:
-                format_vulnerabilities_list(vuln_differ.vulnerabilities_diff, file)
-            else:
-                format_vulnerabilities_table(vuln_differ.vulnerabilities_diff_all_info, file)
+        _report(vuln_differ, show, output, all_info, file)
     except RuntimeError as e:
         click.echo(f"Error: {e}", err=True)
         exit(1)
@@ -187,6 +254,13 @@ def sbom_diff(
     required=True,
 )
 @click.option(
+    "--show",
+    type=click.Choice(["fixed", "new", "all"], case_sensitive=False),
+    default="fixed",
+    help="Which vulnerabilities to report (fixed, new, or all).",
+    required=False,
+)
+@click.option(
     "-o",
     "--output",
     type=click.Choice(["rich", "json"], case_sensitive=False),
@@ -207,6 +281,7 @@ def image_diff(
     ctx: click.core.Context,
     previous_image: str,
     next_image: str,
+    show: str,
     output: str,
     file: IO[str],
 ):
@@ -225,10 +300,7 @@ def image_diff(
     )
 
     try:
-        if output == "json":
-            json.dump(vuln_differ.vulnerabilities_diff, file, indent=2)
-        else:  # rich format
-            format_vulnerabilities_list(vuln_differ.vulnerabilities_diff, file)
+        _report(vuln_differ, show, output, all_info=False, file=file)
     except RuntimeError as e:
         click.echo(f"Error: {e}", err=True)
         exit(1)

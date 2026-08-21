@@ -51,3 +51,22 @@ def sample_vulnerabilities_all_info():
             {"package2": {"previous_version": "2.0.0", "new_version": "", "removed": True}}
         ],
     }
+
+
+@pytest.fixture
+def sample_new_vulnerabilities_list():
+    """Sample new vulnerability list for testing."""
+    return ["CVE-2025-0001", "CVE-2025-0002"]
+
+
+@pytest.fixture
+def sample_new_vulnerabilities_all_info():
+    """Sample new vulnerability data with all info for testing."""
+    return {
+        "CVE-2025-0001": [
+            {"package1": {"new_version": "1.1.0", "previous_version": "1.0.0", "added": False}}
+        ],
+        "CVE-2025-0002": [
+            {"package3": {"new_version": "3.0.0", "previous_version": "", "added": True}}
+        ],
+    }

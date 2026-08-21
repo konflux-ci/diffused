@@ -22,6 +22,8 @@ def test_init_with_sbom_paths(test_previous_sbom_path, test_next_sbom_path):
     assert differ.next_release.image is None
     assert differ._vulnerabilities_diff == []
     assert differ._vulnerabilities_diff_all_info == {}
+    assert differ._new_vulnerabilities == []
+    assert differ._new_vulnerabilities_all_info == {}
     assert differ.error == ""
 
 
@@ -603,3 +605,386 @@ def test_process_results_raises_error_when_next_scan_fails(test_previous_image, 
         differ.process_results()
 
     assert differ.error == "Failed to scan next release. ACS command failed"
+
+
+def test_diff_new_vulnerabilities(test_previous_sbom_path, test_next_sbom_path):
+    """Test diff_new_vulnerabilities method."""
+    differ = VulnerabilityDiffer(
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
+    )
+
+    # mock processed results
+    differ.previous_release.processed_result = defaultdict(set)
+    differ.previous_release.processed_result["CVE-2023-5678"] = {
+        Package(name="pkg2", version="2.0")
+    }
+    differ.previous_release.processed_result["CVE-2023-9999"] = {
+        Package(name="pkg3", version="3.0")
+    }
+
+    differ.next_release.processed_result = defaultdict(set)
+    differ.next_release.processed_result["CVE-2023-5678"] = {
+        Package(name="pkg2", version="2.1")
+    }  # still present
+    differ.next_release.processed_result["CVE-2023-9999"] = {
+        Package(name="pkg3", version="3.0")
+    }  # still present
+    differ.next_release.processed_result["CVE-2023-1234"] = {
+        Package(name="pkg1", version="1.0")
+    }  # newly introduced
+
+    # mock process_results
+    differ.process_results = MagicMock()
+
+    differ.diff_new_vulnerabilities()
+
+    # should find CVE-2023-1234 as new (present in next but not in previous)
+    assert "CVE-2023-1234" in differ._new_vulnerabilities
+    assert "CVE-2023-5678" not in differ._new_vulnerabilities
+    assert "CVE-2023-9999" not in differ._new_vulnerabilities
+    assert len(differ._new_vulnerabilities) == 1
+
+
+def test_diff_new_vulnerabilities_calls_process_results(
+    test_previous_sbom_path, test_next_sbom_path
+):
+    """Test diff_new_vulnerabilities processes results when they are not available."""
+    differ = VulnerabilityDiffer(
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
+    )
+
+    def mock_process_results():
+        differ.next_release.processed_result = defaultdict(set)
+        differ.next_release.processed_result["CVE-2023-1234"] = {
+            Package(name="pkg1", version="1.0")
+        }
+
+    differ.process_results = MagicMock(side_effect=mock_process_results)
+
+    differ.diff_new_vulnerabilities()
+
+    differ.process_results.assert_called_once()
+    assert differ._new_vulnerabilities == ["CVE-2023-1234"]
+
+
+def test_diff_new_vulnerabilities_identical_sets(test_previous_sbom_path, test_next_sbom_path):
+    """Test diff_new_vulnerabilities returns empty when both releases share the same CVEs."""
+    differ = VulnerabilityDiffer(
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
+    )
+
+    differ.previous_release.processed_result = defaultdict(set)
+    differ.previous_release.processed_result["CVE-2023-5678"] = {
+        Package(name="pkg2", version="2.0")
+    }
+    differ.next_release.processed_result = defaultdict(set)
+    differ.next_release.processed_result["CVE-2023-5678"] = {Package(name="pkg2", version="2.1")}
+
+    differ.process_results = MagicMock()
+
+    differ.diff_new_vulnerabilities()
+
+    # no CVE is present in next but absent from previous
+    assert differ._new_vulnerabilities == []
+
+
+def test_diff_new_vulnerabilities_all_new(test_previous_sbom_path, test_next_sbom_path):
+    """Test diff_new_vulnerabilities returns every CVE when previous has none."""
+    differ = VulnerabilityDiffer(
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
+    )
+
+    differ.previous_release.processed_result = defaultdict(set)
+    differ.next_release.processed_result = defaultdict(set)
+    differ.next_release.processed_result["CVE-2023-1234"] = {Package(name="pkg1", version="1.0")}
+    differ.next_release.processed_result["CVE-2023-5678"] = {Package(name="pkg2", version="2.0")}
+
+    differ.process_results = MagicMock()
+
+    differ.diff_new_vulnerabilities()
+
+    # every CVE in next is new
+    assert set(differ._new_vulnerabilities) == {"CVE-2023-1234", "CVE-2023-5678"}
+
+
+def test_diff_both_directions_same_instance(test_previous_sbom_path, test_next_sbom_path):
+    """Test computing fixed and new diffs on one instance keeps the two caches independent."""
+    differ = VulnerabilityDiffer(
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
+    )
+
+    differ.previous_release.processed_result = defaultdict(set)
+    differ.previous_release.processed_result["CVE-2023-5678"] = {
+        Package(name="pkg2", version="2.0")
+    }  # shared
+    differ.previous_release.processed_result["CVE-2023-FIXED"] = {
+        Package(name="pkg9", version="9.0")
+    }  # only in previous
+
+    differ.next_release.processed_result = defaultdict(set)
+    differ.next_release.processed_result["CVE-2023-5678"] = {
+        Package(name="pkg2", version="2.1")
+    }  # shared
+    differ.next_release.processed_result["CVE-2023-NEW"] = {
+        Package(name="pkg1", version="1.0")
+    }  # only in next
+
+    differ.process_results = MagicMock()
+
+    differ.diff_vulnerabilities()
+    differ.diff_new_vulnerabilities()
+
+    # fixed = previous - next; new = next - previous; the two caches must not clobber each other
+    assert differ._vulnerabilities_diff == ["CVE-2023-FIXED"]
+    assert differ._new_vulnerabilities == ["CVE-2023-NEW"]
+
+
+def test_build_additional_info():
+    """Test _build_additional_info builds the version diff from an already-loaded SBOM."""
+    source_release = MagicMock()
+    source_release.processed_result = {
+        "CVE-2023-1234": {
+            Package(name="package1", version="1.1.0"),
+            Package(name="package2", version="2.0.0"),
+        },
+        "CVE-2023-5678": {Package(name="package3", version="3.0.0")},
+    }
+
+    target_release_sbom = {
+        "packages": [
+            {"name": "package1", "versionInfo": "1.0.0"},  # present in target
+            {"name": "package2", "versionInfo": "2.0.0"},  # same version
+            # package3 is missing (added)
+            {"name": "package4", "versionInfo": "4.0.0"},  # unrelated package
+        ]
+    }
+
+    result = VulnerabilityDiffer._build_additional_info(
+        vulnerabilities=["CVE-2023-1234", "CVE-2023-5678"],
+        source_release=source_release,
+        target_release_sbom=target_release_sbom,
+        source_version_key="new_version",
+        target_version_key="previous_version",
+        change_key="added",
+    )
+
+    assert len(result) == 2
+
+    cve_1234_info = result["CVE-2023-1234"]
+    package1_info = next(info for info in cve_1234_info if "package1" in info)
+    assert package1_info["package1"]["new_version"] == "1.1.0"
+    assert package1_info["package1"]["previous_version"] == "1.0.0"
+    assert package1_info["package1"]["added"] is False
+
+    # package3 is not in the target SBOM, so it is flagged as added
+    package3_info = result["CVE-2023-5678"][0]
+    assert package3_info["package3"]["new_version"] == "3.0.0"
+    assert package3_info["package3"]["previous_version"] == ""
+    assert package3_info["package3"]["added"] is True
+
+
+def test_generate_new_additional_info_no_vulnerabilities(
+    test_previous_sbom_path, test_next_sbom_path
+):
+    """Test generate_new_additional_info with no vulnerabilities."""
+    differ = VulnerabilityDiffer(
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
+    )
+
+    differ._new_vulnerabilities = []
+    differ.diff_new_vulnerabilities = MagicMock()
+
+    differ.generate_new_additional_info()
+
+    assert differ._new_vulnerabilities_all_info == {}
+
+
+def test_generate_new_additional_info_no_previous_sbom(test_previous_image, test_next_sbom_path):
+    """Test generate_new_additional_info when previous SBOM is missing."""
+    differ = VulnerabilityDiffer(
+        previous_image=test_previous_image, next_sbom=test_next_sbom_path  # no previous_sbom set
+    )
+
+    differ._new_vulnerabilities = ["CVE-2023-1234"]
+    differ.diff_new_vulnerabilities = MagicMock()
+
+    differ.generate_new_additional_info()
+
+    # should return early when no previous SBOM
+    assert differ._new_vulnerabilities_all_info == {}
+
+
+def test_generate_new_additional_info_with_vulnerabilities(
+    test_previous_sbom_path, test_next_sbom_path
+):
+    """Test generate_new_additional_info with actual vulnerabilities."""
+    differ = VulnerabilityDiffer(
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
+    )
+
+    # setup test data: affected packages come from the next release
+    differ._new_vulnerabilities = ["CVE-2023-1234", "CVE-2023-5678"]
+    differ.next_release.processed_result = defaultdict(set)
+    differ.next_release.processed_result["CVE-2023-1234"] = {
+        Package(name="package1", version="1.1.0"),
+        Package(name="package2", version="2.0.0"),
+    }
+    differ.next_release.processed_result["CVE-2023-5678"] = {
+        Package(name="package3", version="3.0.0")
+    }
+
+    # mock previous SBOM data
+    test_sbom = {
+        "packages": [
+            {"name": "package1", "versionInfo": "1.0.0"},  # updated into a vulnerable version
+            {"name": "package2", "versionInfo": "2.0.0"},  # same version
+            # package3 is missing (added)
+            {"name": "package4", "versionInfo": "4.0.0"},  # unrelated package
+        ]
+    }
+
+    with patch.object(differ, "load_sbom", return_value=test_sbom) as mock_load_sbom:
+        differ.generate_new_additional_info()
+
+    # the lookup must load the previous release SBOM, not the next one
+    mock_load_sbom.assert_called_once_with(test_previous_sbom_path)
+
+    # verify results
+    assert len(differ._new_vulnerabilities_all_info) == 2
+
+    # check CVE-2023-1234
+    cve_1234_info = differ._new_vulnerabilities_all_info["CVE-2023-1234"]
+    assert len(cve_1234_info) == 2
+
+    # check package1 info
+    package1_info = next(info for info in cve_1234_info if "package1" in info)
+    assert package1_info["package1"]["previous_version"] == "1.0.0"
+    assert package1_info["package1"]["new_version"] == "1.1.0"
+    assert package1_info["package1"]["added"] is False
+
+    # check package2 info
+    package2_info = next(info for info in cve_1234_info if "package2" in info)
+    assert package2_info["package2"]["previous_version"] == "2.0.0"
+    assert package2_info["package2"]["new_version"] == "2.0.0"
+    assert package2_info["package2"]["added"] is False
+
+    # check CVE-2023-5678
+    cve_5678_info = differ._new_vulnerabilities_all_info["CVE-2023-5678"]
+    assert len(cve_5678_info) == 1
+
+    # check package3 info (added)
+    package3_info = cve_5678_info[0]
+    assert package3_info["package3"]["previous_version"] == ""
+    assert package3_info["package3"]["new_version"] == "3.0.0"
+    assert package3_info["package3"]["added"] is True
+
+
+def test_generate_new_additional_info_calls_diff_when_empty(
+    test_previous_sbom_path, test_next_sbom_path
+):
+    """Test generate_new_additional_info triggers diff_new_vulnerabilities when unresolved."""
+    differ = VulnerabilityDiffer(
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
+    )
+
+    differ._new_vulnerabilities = []
+    differ.next_release.processed_result = defaultdict(set)
+    differ.next_release.processed_result["CVE-2023-1234"] = {
+        Package(name="package1", version="1.1.0")
+    }
+
+    # diff_new_vulnerabilities is what resolves the (initially empty) new vulnerabilities
+    def mock_diff():
+        differ._new_vulnerabilities = ["CVE-2023-1234"]
+
+    differ.diff_new_vulnerabilities = MagicMock(side_effect=mock_diff)
+
+    test_sbom = {"packages": [{"name": "package1", "versionInfo": "1.0.0"}]}
+
+    with patch.object(differ, "load_sbom", return_value=test_sbom):
+        differ.generate_new_additional_info()
+
+    differ.diff_new_vulnerabilities.assert_called_once()
+    assert "CVE-2023-1234" in differ._new_vulnerabilities_all_info
+
+
+def test_new_vulnerabilities_property(test_previous_sbom_path, test_next_sbom_path):
+    """Test new_vulnerabilities property."""
+    differ = VulnerabilityDiffer(
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
+    )
+
+    # mock diff_new_vulnerabilities method
+    differ.diff_new_vulnerabilities = MagicMock()
+    differ._new_vulnerabilities = ["CVE-2023-1234"]
+
+    result = differ.new_vulnerabilities
+
+    # should not call diff_new_vulnerabilities if already populated
+    differ.diff_new_vulnerabilities.assert_not_called()
+    assert result == ["CVE-2023-1234"]
+
+
+def test_new_vulnerabilities_property_calls_diff(test_previous_sbom_path, test_next_sbom_path):
+    """Test new_vulnerabilities property calls diff when empty."""
+    differ = VulnerabilityDiffer(
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
+    )
+
+    # mock diff_new_vulnerabilities method
+    differ.diff_new_vulnerabilities = MagicMock()
+    differ._new_vulnerabilities = []
+
+    # mock the method to set some data
+    def mock_diff():
+        differ._new_vulnerabilities = ["CVE-2023-1234"]
+
+    differ.diff_new_vulnerabilities.side_effect = mock_diff
+
+    result = differ.new_vulnerabilities
+
+    # should call diff_new_vulnerabilities when empty
+    differ.diff_new_vulnerabilities.assert_called_once()
+    assert result == ["CVE-2023-1234"]
+
+
+def test_new_vulnerabilities_all_info_property(test_previous_sbom_path, test_next_sbom_path):
+    """Test new_vulnerabilities_all_info property."""
+    differ = VulnerabilityDiffer(
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
+    )
+
+    # mock generate_new_additional_info method
+    differ.generate_new_additional_info = MagicMock()
+    differ._new_vulnerabilities_all_info = {"CVE-2023-1234": []}
+
+    result = differ.new_vulnerabilities_all_info
+
+    # should not call generate_new_additional_info if already populated
+    differ.generate_new_additional_info.assert_not_called()
+    assert result == {"CVE-2023-1234": []}
+
+
+def test_new_vulnerabilities_all_info_property_calls_generate(
+    test_previous_sbom_path, test_next_sbom_path
+):
+    """Test new_vulnerabilities_all_info property calls generate when empty."""
+    differ = VulnerabilityDiffer(
+        previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
+    )
+
+    # mock generate_new_additional_info method
+    differ.generate_new_additional_info = MagicMock()
+    differ._new_vulnerabilities_all_info = {}
+
+    # mock the method to set some data
+    def mock_generate():
+        differ._new_vulnerabilities_all_info = {"CVE-2023-1234": []}
+
+    differ.generate_new_additional_info.side_effect = mock_generate
+
+    result = differ.new_vulnerabilities_all_info
+
+    # should call generate_new_additional_info when empty
+    differ.generate_new_additional_info.assert_called_once()
+    assert result == {"CVE-2023-1234": []}

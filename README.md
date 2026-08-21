@@ -1,6 +1,6 @@
 # Diffused
 
-A vulnerability scan diffing tool for container images and SBOMs (Software Bill of Materials). Diffused finds fixed vulnerabilities between different versions of container images by comparing vulnerability scan results.
+A vulnerability scan diffing tool for container images and SBOMs (Software Bill of Materials). Diffused finds vulnerabilities that were fixed or newly introduced between different versions of container images by comparing vulnerability scan results.
 
 Its name comes from the pun `diff + used`, which means it performs the diffing of both results.
 
@@ -14,6 +14,7 @@ This project is split into two main components:
 ## Features
 
 - 🔍 **Vulnerability Scanning**: Automated scanning of SBOMs using [Trivy](https://trivy.dev/) (default) or scanning of container images using [RHACS](https://www.redhat.com/pt-br/technologies/cloud-computing/openshift/advanced-cluster-security-kubernetes)
+- 🔀 **Fixed & New Vulnerability Detection**: Reports both vulnerabilities fixed and vulnerabilities newly introduced between two versions
 - 📊 **SBOM Diffing**: Direct comparison of SPDX-JSON formatted SBOMs (Trivy only)
 - 📄 **Multiple Output Formats**: Support for both rich text and JSON output
 

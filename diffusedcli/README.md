@@ -39,8 +39,14 @@ pip install diffusedcli
 ### Compare Container Images
 
 ```bash
-# Basic vulnerability diff between two container images
+# Basic vulnerability diff between two container images (fixed vulnerabilities)
 diffused image-diff -p ubuntu:20.04 -n ubuntu:22.04
+
+# Report vulnerabilities newly introduced in the next image
+diffused image-diff -p ubuntu:20.04 -n ubuntu:22.04 --show new
+
+# Report both fixed and new vulnerabilities
+diffused image-diff -p ubuntu:20.04 -n ubuntu:22.04 --show all
 
 # Use ACS scanner
 diffused --scanner acs image-diff -p nginx:1.20 -n nginx:1.21
@@ -52,8 +58,14 @@ diffused image-diff -p app:v1.0 -n app:v2.0 --output json --file report.json
 ### Compare SBOMs
 
 ```bash
-# Compare two SBOM files
+# Compare two SBOM files (fixed vulnerabilities)
 diffused sbom-diff -p previous.json -n current.json
+
+# Report vulnerabilities newly introduced in the next SBOM
+diffused sbom-diff -p previous.json -n current.json --show new
+
+# Report both fixed and new vulnerabilities with detailed information
+diffused sbom-diff -p previous.json -n current.json --show all --all-info
 
 # Get detailed vulnerability information
 diffused sbom-diff -p old-sbom.json -n new-sbom.json --all-info
@@ -88,6 +100,7 @@ For more information on commands and options, use the `--help` option.
 |--------|-------|-------------|----------|
 | `--previous-image` | `-p` | Previous container image URL | Yes |
 | `--next-image` | `-n` | Next container image URL | Yes |
+| `--show` | | Which vulnerabilities to report (`fixed`, `new`, `all`) | No (default `fixed`) |
 | `--output` | `-o` | Output format (`rich`, `json`) | `rich` |
 | `--file` | `-f` | Output file (use `-` for stdout) | `-` |
 
@@ -98,5 +111,6 @@ For more information on commands and options, use the `--help` option.
 | `--previous-sbom` | `-p` | Previous SBOM file path | Yes |
 | `--next-sbom` | `-n` | Next SBOM file path | Yes |
 | `--all-info` | `-a` | Show detailed vulnerability information (SBOM only) | `False` |
+| `--show` | | Which vulnerabilities to report (`fixed`, `new`, `all`) | No (default `fixed`) |
 | `--output` | `-o` | Output format (`rich`, `json`) | `rich` |
 | `--file` | `-f` | Output file (use `-` for stdout) | `-` |
