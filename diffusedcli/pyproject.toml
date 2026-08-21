@@ -39,11 +39,11 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "tox",
-    "diffused[black]",
-    "diffused[flake8]",
-    "diffused[isort]",
-    "diffused[mypy]",
-    "diffused[pytest]",
+    "diffused-cli[black]",
+    "diffused-cli[flake8]",
+    "diffused-cli[isort]",
+    "diffused-cli[mypy]",
+    "diffused-cli[pytest]",
 ]
 black = [
     "black",
