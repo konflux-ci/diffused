@@ -29,14 +29,14 @@ class VulnerabilityDiffer:
         self.previous_release = scanner_class(sbom=previous_sbom, image=previous_image)
         self.next_release = scanner_class(sbom=next_sbom, image=next_image)
         self.scan_type = scan_type
-        self._vulnerabilities_diff: List[str] = []
-        self._vulnerabilities_diff_all_info: Dict[
-            str, List[Dict[str, Dict[str, Union[str, bool]]]]
-        ] = {}
-        self._new_vulnerabilities: List[str] = []
-        self._new_vulnerabilities_all_info: Dict[
-            str, List[Dict[str, Dict[str, Union[str, bool]]]]
-        ] = {}
+        self._vulnerabilities_diff: Optional[List[str]] = None
+        self._vulnerabilities_diff_all_info: Optional[
+            Dict[str, List[Dict[str, Dict[str, Union[str, bool]]]]]
+        ] = None
+        self._new_vulnerabilities: Optional[List[str]] = None
+        self._new_vulnerabilities_all_info: Optional[
+            Dict[str, List[Dict[str, Dict[str, Union[str, bool]]]]]
+        ] = None
         self.error: str = ""
 
     @staticmethod
@@ -229,8 +229,9 @@ class VulnerabilityDiffer:
         Note: This requires the next release SBOM to be available. If it is not available,
         this will return an empty dictionary.
         """
-        if not self._vulnerabilities_diff:
+        if self._vulnerabilities_diff is None:
             self.diff_vulnerabilities()
+        assert self._vulnerabilities_diff is not None
 
         self._vulnerabilities_diff_all_info = self._generate_additional_info(
             vulnerabilities=self._vulnerabilities_diff,
@@ -248,8 +249,9 @@ class VulnerabilityDiffer:
         Note: This requires the previous release SBOM to be available. If it is not
         available, this will return an empty dictionary.
         """
-        if not self._new_vulnerabilities:
+        if self._new_vulnerabilities is None:
             self.diff_new_vulnerabilities()
+        assert self._new_vulnerabilities is not None
 
         self._new_vulnerabilities_all_info = self._generate_additional_info(
             vulnerabilities=self._new_vulnerabilities,
@@ -264,27 +266,27 @@ class VulnerabilityDiffer:
     @property
     def vulnerabilities_diff(self):
         """Process the SBOM, if needed, and return the vulnerabilities diff."""
-        if not self._vulnerabilities_diff:
+        if self._vulnerabilities_diff is None:
             self.diff_vulnerabilities()
         return self._vulnerabilities_diff
 
     @property
     def vulnerabilities_diff_all_info(self):
         """Process the SBOM, if needed, and return the vulnerabilities diff with additional info."""
-        if not self._vulnerabilities_diff_all_info:
+        if self._vulnerabilities_diff_all_info is None:
             self.generate_additional_info()
         return self._vulnerabilities_diff_all_info
 
     @property
     def new_vulnerabilities(self):
         """Process the SBOM, if needed, and return the new vulnerabilities."""
-        if not self._new_vulnerabilities:
+        if self._new_vulnerabilities is None:
             self.diff_new_vulnerabilities()
         return self._new_vulnerabilities
 
     @property
     def new_vulnerabilities_all_info(self):
         """Process the SBOM, if needed, and return the new vulnerabilities with additional info."""
-        if not self._new_vulnerabilities_all_info:
+        if self._new_vulnerabilities_all_info is None:
             self.generate_new_additional_info()
         return self._new_vulnerabilities_all_info
