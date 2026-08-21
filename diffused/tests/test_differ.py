@@ -20,10 +20,10 @@ def test_init_with_sbom_paths(test_previous_sbom_path, test_next_sbom_path):
     assert differ.next_release.sbom == test_next_sbom_path
     assert differ.previous_release.image is None
     assert differ.next_release.image is None
-    assert differ._vulnerabilities_diff == []
-    assert differ._vulnerabilities_diff_all_info == {}
-    assert differ._new_vulnerabilities == []
-    assert differ._new_vulnerabilities_all_info == {}
+    assert differ._vulnerabilities_diff is None
+    assert differ._vulnerabilities_diff_all_info is None
+    assert differ._new_vulnerabilities is None
+    assert differ._new_vulnerabilities_all_info is None
     assert differ.error == ""
 
 
@@ -225,11 +225,14 @@ def test_generate_additional_info_no_vulnerabilities(test_previous_sbom_path, te
         previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
     )
 
-    differ._vulnerabilities_diff = []
-    differ.diff_vulnerabilities = MagicMock()
+    def mock_diff():
+        differ._vulnerabilities_diff = []
+
+    differ.diff_vulnerabilities = MagicMock(side_effect=mock_diff)
 
     differ.generate_additional_info()
 
+    differ.diff_vulnerabilities.assert_called_once()
     assert differ._vulnerabilities_diff_all_info == {}
 
 
@@ -335,7 +338,7 @@ def test_vulnerabilities_diff_property_calls_diff(test_previous_sbom_path, test_
 
     # mock diff_vulnerabilities method
     differ.diff_vulnerabilities = MagicMock()
-    differ._vulnerabilities_diff = []
+    differ._vulnerabilities_diff = None
 
     # mock the method to set some data
     def mock_diff():
@@ -345,7 +348,7 @@ def test_vulnerabilities_diff_property_calls_diff(test_previous_sbom_path, test_
 
     result = differ.vulnerabilities_diff
 
-    # should call diff_vulnerabilities when empty
+    # should call diff_vulnerabilities when None
     differ.diff_vulnerabilities.assert_called_once()
     assert result == ["CVE-2023-1234"]
 
@@ -377,7 +380,7 @@ def test_vulnerabilities_diff_all_info_property_calls_generate(
 
     # mock generate_additional_info method
     differ.generate_additional_info = MagicMock()
-    differ._vulnerabilities_diff_all_info = {}
+    differ._vulnerabilities_diff_all_info = None
 
     # mock the method to set some data
     def mock_generate():
@@ -792,7 +795,6 @@ def test_generate_new_additional_info_no_vulnerabilities(
     )
 
     differ._new_vulnerabilities = []
-    differ.diff_new_vulnerabilities = MagicMock()
 
     differ.generate_new_additional_info()
 
@@ -887,7 +889,7 @@ def test_generate_new_additional_info_calls_diff_when_empty(
         previous_sbom=test_previous_sbom_path, next_sbom=test_next_sbom_path
     )
 
-    differ._new_vulnerabilities = []
+    differ._new_vulnerabilities = None
     differ.next_release.processed_result = defaultdict(set)
     differ.next_release.processed_result["CVE-2023-1234"] = {
         Package(name="package1", version="1.1.0")
@@ -933,7 +935,7 @@ def test_new_vulnerabilities_property_calls_diff(test_previous_sbom_path, test_n
 
     # mock diff_new_vulnerabilities method
     differ.diff_new_vulnerabilities = MagicMock()
-    differ._new_vulnerabilities = []
+    differ._new_vulnerabilities = None
 
     # mock the method to set some data
     def mock_diff():
@@ -943,7 +945,7 @@ def test_new_vulnerabilities_property_calls_diff(test_previous_sbom_path, test_n
 
     result = differ.new_vulnerabilities
 
-    # should call diff_new_vulnerabilities when empty
+    # should call diff_new_vulnerabilities when None
     differ.diff_new_vulnerabilities.assert_called_once()
     assert result == ["CVE-2023-1234"]
 
@@ -975,7 +977,7 @@ def test_new_vulnerabilities_all_info_property_calls_generate(
 
     # mock generate_new_additional_info method
     differ.generate_new_additional_info = MagicMock()
-    differ._new_vulnerabilities_all_info = {}
+    differ._new_vulnerabilities_all_info = None
 
     # mock the method to set some data
     def mock_generate():
