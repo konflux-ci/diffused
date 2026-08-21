@@ -33,11 +33,11 @@ classifiers = [
 [project.optional-dependencies]
 dev = [
     "tox",
-    "diffused[black]",
-    "diffused[flake8]",
-    "diffused[isort]",
-    "diffused[mypy]",
-    "diffused[pytest]",
+    "diffused-lib[black]",
+    "diffused-lib[flake8]",
+    "diffused-lib[isort]",
+    "diffused-lib[mypy]",
+    "diffused-lib[pytest]",
 ]
 black = [
     "black",
