@@ -21,6 +21,7 @@ ROXCTL_VERSION_COMMAND = ["roxctl", "version"]
 ROXCTL_BASE_ARGS = ["roxctl", "--no-color"]
 ROXCTL_SBOM_ARGS = ROXCTL_BASE_ARGS + ["image", "sbom"]
 ROXCTL_SCAN_ARGS = ROXCTL_BASE_ARGS + ["image", "scan", "--output", "json"]
+ROXCTL_SBOM_SCAN_ARGS = ROXCTL_BASE_ARGS + ["sbom", "scan", "--file"]
 
 # Error message patterns
 MISSING_ENDPOINT_ERROR = "ROX_ENDPOINT must be set in the environment variables"
@@ -28,8 +29,8 @@ MISSING_AUTH_ERROR = "ROX_API_TOKEN or ROX_CONFIG_DIR must be set in the environ
 MISSING_IMAGE_ERROR = "You must set the image to retrieve the SBOM"
 MISSING_OUTPUT_FILE_ERROR = "You must set the output_file with a valid path"
 MISSING_IMAGE_SCAN_ERROR = "You must set the image to scan"
+MISSING_SBOM_SCAN_ERROR = "You must set the SBOM to scan"
 NO_RAW_RESULT_ERROR = "Run a scan before processing its output"
-SBOM_SCAN_NOT_SUPPORTED_ERROR = "SBOM scanning is not supported by ACS"
 
 
 def create_mock_result(stdout="", returncode=SUCCESS_RETURN_CODE):
@@ -180,12 +181,61 @@ def test_acs_command_execution_handles_unexpected_subprocess_error(mock_run, rox
     assert "Unexpected error during ACS test operation" in scanner.error
 
 
-def test_scan_sbom_raises_not_implemented_error(rox_env, test_image):
-    """Test scan_sbom raises NotImplementedError as SBOM scanning is not supported by ACS."""
+@patch.object(ACSScanner, "_run_acs_command")
+def test_scan_sbom_succeeds_with_valid_sbom(
+    mock_run_command, rox_env, test_sbom_path, sample_acs_response
+):
+    """Test scan_sbom completes successfully when provided with valid SBOM."""
+    scanner = create_scanner_with_sbom(test_sbom_path)
+    mock_result = create_mock_result(stdout=json.dumps(sample_acs_response))
+    mock_run_command.return_value = mock_result
+
+    scanner.scan_sbom()
+
+    mock_run_command.assert_called_once_with(
+        ROXCTL_SBOM_SCAN_ARGS + [test_sbom_path, "--output", "json"],
+        f"SBOM scan for {test_sbom_path}",
+    )
+    assert scanner.raw_result == sample_acs_response
+    assert scanner.error == ""
+
+
+def test_scan_sbom_fails_when_scanner_has_no_sbom(rox_env, test_image):
+    """Test scan_sbom raises ValueError when scanner was initialized without an SBOM."""
     scanner = create_scanner_with_image(test_image)
-    with pytest.raises(NotImplementedError, match=SBOM_SCAN_NOT_SUPPORTED_ERROR):
+    with pytest.raises(ValueError, match=MISSING_SBOM_SCAN_ERROR):
         scanner.scan_sbom()
-    assert SBOM_SCAN_NOT_SUPPORTED_ERROR in scanner.error
+
+
+@patch.object(ACSScanner, "_run_acs_command")
+def test_scan_sbom_handles_invalid_json_output_gracefully(
+    mock_run_command, rox_env, test_sbom_path
+):
+    """Test scan_sbom handles invalid JSON output from command without raising exception."""
+    scanner = create_scanner_with_sbom(test_sbom_path)
+    mock_result = create_mock_result(stdout="invalid json")
+    mock_run_command.return_value = mock_result
+
+    scanner.scan_sbom()
+
+    assert "Error parsing ACS output" in scanner.error
+    assert scanner.raw_result is None
+
+
+@patch("diffused.scanners.acs.subprocess.run")
+def test_scan_sbom_handles_command_execution_failure_gracefully(mock_run, rox_env, test_sbom_path):
+    """Test scan_sbom handles subprocess command failure and records the error."""
+    scanner = create_scanner_with_sbom(test_sbom_path)
+    mock_run.side_effect = subprocess.CalledProcessError(
+        ERROR_RETURN_CODE, ROXCTL_SBOM_SCAN_ARGS, stderr="error output"
+    )
+
+    scanner.scan_sbom()
+
+    # Should not raise exception, and the failure should be stored in scanner.error
+    assert scanner.raw_result is None
+    assert f"ACS SBOM scan for {test_sbom_path} failed" in scanner.error
+    assert "error output" in scanner.error
 
 
 def test_result_processing_fails_when_no_scan_data_available(rox_env, test_image):
@@ -330,6 +380,28 @@ def test_complete_workflow_executes_all_operations_successfully(
         mock_run.return_value = mock_result
 
         scanner.scan_image()
+        assert scanner.raw_result is not None
+
+        # Test process_result
+        scanner.process_result()
+        assert_vulnerability_processing_results(
+            scanner.processed_result, expected_cve_count=1, expected_cves=["CVE-2023-1234"]
+        )
+
+
+def test_complete_sbom_workflow_executes_all_operations_successfully(
+    rox_env, test_sbom_path, integration_acs_response
+):
+    """Test complete workflow of SBOM scanning and result processing executes successfully."""
+    scanner = create_scanner_with_sbom(test_sbom_path)
+
+    # Mock the entire workflow
+    with patch.object(scanner, "_run_acs_command") as mock_run:
+        # Test scan_sbom
+        mock_result = create_mock_result(stdout=json.dumps(integration_acs_response))
+        mock_run.return_value = mock_result
+
+        scanner.scan_sbom()
         assert scanner.raw_result is not None
 
         # Test process_result

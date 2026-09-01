@@ -72,10 +72,31 @@ class ACSScanner(BaseScanner):
 
     def scan_sbom(self) -> None:
         """Performs a scan on a given SBOM."""
-        error_message = "SBOM scanning is not supported by ACS. Please use scan_image() instead."
-        logger.error(error_message)
-        self.error = error_message
-        raise NotImplementedError(error_message)
+        if not self.sbom:
+            raise ValueError("You must set the SBOM to scan.")
+
+        cmd = [
+            "roxctl",
+            "--no-color",
+            "sbom",
+            "scan",
+            "--file",
+            self.sbom,
+            "--output",
+            "json",
+        ]
+
+        try:
+            result = self._run_acs_command(cmd, f"SBOM scan for {self.sbom}")
+            self.raw_result = json.loads(result.stdout)
+            logger.info(f"Successfully scanned SBOM {self.sbom}")
+        except json.JSONDecodeError as e:
+            error_message = f"Error parsing ACS output for {self.sbom}: {e}."
+            logger.error(error_message)
+            self.error = error_message
+        except Exception:
+            # error already logged and stored in self.error by _run_acs_command
+            pass
 
     def scan_image(self) -> None:
         """Performs a scan on a given image."""
@@ -102,7 +123,7 @@ class ACSScanner(BaseScanner):
             logger.error(error_message)
             self.error = error_message
         except Exception:
-            # Error already logged and stored in self.error by _run_acs_command
+            # error already logged and stored in self.error by _run_acs_command
             pass
 
     def process_result(self) -> None:

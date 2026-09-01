@@ -214,11 +214,6 @@ def sbom_diff(
     """Show the vulnerability diff between two SBOMs."""
     scanner = ctx.obj["scanner"]
 
-    # ACS does not support SBOM scanning
-    if scanner == "acs":
-        click.echo("Error: SBOM scanning is not supported by the 'acs' scanner")
-        exit(1)
-
     if not os.path.isfile(previous_sbom):
         click.echo(f"Could not find {previous_sbom}")
         exit(1)

@@ -13,10 +13,12 @@ This project is split into two main components:
 
 ## Features
 
-- 🔍 **Vulnerability Scanning**: Automated scanning of SBOMs using [Trivy](https://trivy.dev/) (default) or scanning of container images using [RHACS](https://www.redhat.com/pt-br/technologies/cloud-computing/openshift/advanced-cluster-security-kubernetes)
+- 🔍 **Vulnerability Scanning**: Automated scanning of SBOMs using [Trivy](https://trivy.dev/) (default) or scanning of container images and SBOMs using [RHACS](https://www.redhat.com/en/technologies/cloud-computing/openshift/advanced-cluster-security-kubernetes)
 - 🔀 **Fixed & New Vulnerability Detection**: Reports both vulnerabilities fixed and vulnerabilities newly introduced between two versions
-- 📊 **SBOM Diffing**: Direct comparison of SPDX-JSON formatted SBOMs (Trivy only)
+- 📊 **SBOM Diffing**: Direct comparison of SPDX-JSON formatted SBOMs (Trivy or RHACS)
 - 📄 **Multiple Output Formats**: Support for both rich text and JSON output
+
+> **Note:** RHACS SBOM scanning is backed by the `roxctl sbom scan` DEV PREVIEW feature. It currently matches only purl-identified packages (e.g. PyPI) and does not yet report RPM/OS package vulnerabilities; use image scanning for full coverage.
 
 ## Quick Start
 
