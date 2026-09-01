@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "diffused-cli"
-version = "0.4.0"
+version = "0.5.0"
 description = "A vulnerability scan diffing command-line tool for container images and SBOMs"
 readme = "README.md"
 requires-python = ">=3.9,<4.0"
