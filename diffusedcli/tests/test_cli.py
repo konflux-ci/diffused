@@ -3,7 +3,7 @@
 import json
 import sys
 from io import StringIO
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 # Mock the diffused module before importing the CLI
 sys.modules["diffused"] = MagicMock()
@@ -404,15 +404,39 @@ def test_sbom_diff_with_trivy_scanner(
         )
 
 
-def test_sbom_diff_with_acs_scanner_error(runner, test_previous_sbom_path, test_next_sbom_path):
-    """Test sbom-diff command fails when ACS scanner is used."""
+@patch("diffusedcli.cli.os.path.isfile")
+@patch("diffusedcli.cli.VulnerabilityDiffer")
+@patch("diffusedcli.cli.format_vulnerabilities_list")
+def test_sbom_diff_with_acs_scanner(
+    mock_format_list,
+    mock_differ,
+    mock_isfile,
+    runner,
+    sample_vulnerabilities_list,
+    test_previous_sbom_path,
+    test_next_sbom_path,
+):
+    """Test sbom-diff command with ACS scanner."""
+    mock_isfile.return_value = True
+    mock_differ_instance = MagicMock()
+    mock_differ_instance.vulnerabilities_diff = sample_vulnerabilities_list
+    mock_differ.return_value = mock_differ_instance
+
     result = runner.invoke(
         cli,
         ["--scanner", "acs", "sbom-diff", "-p", test_previous_sbom_path, "-n", test_next_sbom_path],
     )
 
-    assert result.exit_code == 1
-    assert "Error: SBOM scanning is not supported by the 'acs' scanner" in result.output
+    assert result.exit_code == 0
+    mock_differ.assert_called_once_with(
+        previous_sbom=test_previous_sbom_path,
+        next_sbom=test_next_sbom_path,
+        scanner="acs",
+        scan_type="sbom",
+    )
+    mock_format_list.assert_called_once_with(
+        sample_vulnerabilities_list, ANY, label="Fixed Vulnerabilities"
+    )
 
 
 def test_sbom_diff_scanner_case_insensitive(runner, test_previous_sbom_path, test_next_sbom_path):
