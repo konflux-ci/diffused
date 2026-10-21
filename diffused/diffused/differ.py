@@ -4,10 +4,7 @@ import json
 import logging
 from typing import Dict, List, Optional, Union
 
-from diffused.scanners.acs import ACSScanner
-from diffused.scanners.base import BaseScanner
-from diffused.scanners.grype import GrypeScanner
-from diffused.scanners.trivy import TrivyScanner
+from diffused.report import ScanReport
 
 logger = logging.getLogger(__name__)
 
@@ -24,11 +21,13 @@ class VulnerabilityDiffer:
         scanner: str = "trivy",
         scan_type: Optional[str] = None,
     ):
-        # Create scanner instances based on the scanner parameter
-        scanner_class = self._get_scanner_class(scanner)
-        self.previous_release = scanner_class(sbom=previous_sbom, image=previous_image)
-        self.next_release = scanner_class(sbom=next_sbom, image=next_image)
-        self.scan_type = scan_type
+        # the differ is simply two single-target reports plus the diff logic
+        self.previous_release = ScanReport(
+            image=previous_image, sbom=previous_sbom, scanner=scanner, scan_type=scan_type
+        )
+        self.next_release = ScanReport(
+            image=next_image, sbom=next_sbom, scanner=scanner, scan_type=scan_type
+        )
         self._vulnerabilities_diff: Optional[List[str]] = None
         self._vulnerabilities_diff_all_info: Optional[
             Dict[str, List[Dict[str, Dict[str, Union[str, bool]]]]]
@@ -37,82 +36,23 @@ class VulnerabilityDiffer:
         self._new_vulnerabilities_all_info: Optional[
             Dict[str, List[Dict[str, Dict[str, Union[str, bool]]]]]
         ] = None
-        self.error: str = ""
 
-    @staticmethod
-    def _get_scanner_class(scanner: str):
-        """Get the scanner class based on the scanner name."""
-        scanner_map = {
-            "acs": ACSScanner,
-            "grype": GrypeScanner,
-            "trivy": TrivyScanner,
-        }
+    @property
+    def scan_type(self) -> str:
+        """Scan type (image or sbom) used by the reports."""
+        return self.previous_release.scan_type
 
-        if scanner not in scanner_map:
-            raise ValueError(
-                f"Unsupported scanner: {scanner}. Supported scanners: {list(scanner_map.keys())}"
-            )
+    @scan_type.setter
+    def scan_type(self, value: str) -> None:
+        """Propagate a scan type change to both reports (effective before scanning)."""
+        self.previous_release.scan_type = value
+        self.next_release.scan_type = value
 
-        return scanner_map[scanner]
+    def _diff_keys(self, minuend_release: ScanReport, subtrahend_release: ScanReport) -> List[str]:
+        """Return the vulnerability keys present in minuend_release but not subtrahend_release.
 
-    def scan_images(self) -> None:
-        """Scans the previous and next images directly."""
-        if not self.previous_release.raw_result:
-            self.previous_release.scan_image()
-        if not self.next_release.raw_result:
-            self.next_release.scan_image()
-
-    def scan_sboms(self) -> None:
-        """Scans the previous and the next SBOMs."""
-        if not self.previous_release.raw_result:
-            self.previous_release.scan_sbom()
-        if not self.next_release.raw_result:
-            self.next_release.scan_sbom()
-
-    def process_results(self) -> None:
-        """Processes the results for the previous and the next releases, if not present.
-
-        If raw results are not available and scan_type is set, performs the appropriate
-        scan before processing.
+        Accessing ``processed_result`` scans and processes each release lazily as needed.
         """
-        # Check if we need to perform scans first
-        if not self.previous_release.raw_result or not self.next_release.raw_result:
-            if self.scan_type:
-                if self.scan_type == "sbom":
-                    self.scan_sboms()
-                elif self.scan_type == "image":
-                    self.scan_images()
-                else:
-                    raise ValueError(
-                        f"Unsupported scan_type: {self.scan_type}."
-                        " Supported types: ['sbom', 'image']"
-                    )
-
-                # Check if scans were successful before processing
-                if not self.previous_release.raw_result:
-                    error_msg = f"Failed to scan previous release. {self.previous_release.error}"
-                    logger.error(error_msg)
-                    self.error = error_msg
-                    raise RuntimeError(error_msg)
-                if not self.next_release.raw_result:
-                    error_msg = f"Failed to scan next release. {self.next_release.error}"
-                    logger.error(error_msg)
-                    self.error = error_msg
-                    raise RuntimeError(error_msg)
-
-        # Process results if not already processed
-        if not self.previous_release.processed_result:
-            self.previous_release.process_result()
-        if not self.next_release.processed_result:
-            self.next_release.process_result()
-
-    def _diff_keys(
-        self, minuend_release: BaseScanner, subtrahend_release: BaseScanner
-    ) -> List[str]:
-        """Return the vulnerability keys present in minuend_release but not subtrahend_release."""
-        if not self.previous_release.processed_result or not self.next_release.processed_result:
-            self.process_results()
-
         # sort for deterministic ordering (set-difference order is hash-seed dependent)
         return sorted(
             set(minuend_release.processed_result.keys())
@@ -136,8 +76,8 @@ class VulnerabilityDiffer:
     def _generate_additional_info(
         self,
         vulnerabilities: List[str],
-        source_release: BaseScanner,
-        target_release: BaseScanner,
+        source_release: ScanReport,
+        target_release: ScanReport,
         source_version_key: str,
         target_version_key: str,
         change_key: str,
@@ -178,7 +118,7 @@ class VulnerabilityDiffer:
     @staticmethod
     def _build_additional_info(
         vulnerabilities: List[str],
-        source_release: BaseScanner,
+        source_release: ScanReport,
         target_release_sbom: dict,
         source_version_key: str,
         target_version_key: str,
@@ -186,14 +126,19 @@ class VulnerabilityDiffer:
     ) -> Dict[str, List[Dict[str, Dict[str, Union[str, bool]]]]]:
         """Builds per-package version information from an already-loaded target SBOM.
 
-        This holds the pure version-diff logic (no file I/O): the affected packages
-        come from ``source_release`` and are looked up in ``target_release_sbom`` to
-        determine the counterpart version and whether the package was added/removed.
+        The target SBOM is passed in already loaded, so this method does not load any
+        SBOM file itself. The affected packages come from ``source_release`` (expected
+        to be an already-scanned report; accessing ``processed_result`` would otherwise
+        scan lazily) and are looked up in ``target_release_sbom`` to determine the
+        counterpart version and whether the package was added/removed.
         """
+        # resolve the processed result once (accessing it may scan/process lazily)
+        source_processed_result = source_release.processed_result
+
         # collect all affected package names from vulnerabilities
         affected_package_names = set()
         for vulnerability in vulnerabilities:
-            for package in source_release.processed_result[vulnerability]:
+            for package in source_processed_result[vulnerability]:
                 affected_package_names.add(package.name)
 
         # only load affected packages into memory
@@ -205,7 +150,7 @@ class VulnerabilityDiffer:
 
         all_info: Dict[str, List[Dict[str, Dict[str, Union[str, bool]]]]] = {}
         for vulnerability in vulnerabilities:
-            affected_packages = source_release.processed_result[vulnerability]
+            affected_packages = source_processed_result[vulnerability]
 
             # create list of package dictionaries for this vulnerability
             package_list = [
