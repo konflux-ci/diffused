@@ -65,6 +65,18 @@ print(f"New vulnerabilities: {new_vulnerabilities}")
 new_detailed_info = vuln_differ.new_vulnerabilities_all_info
 ```
 
+#### Scanning a Single Target
+
+```python
+from diffused.report import ScanReport
+
+# Scan a single image (or SBOM) and get the scanner's full, raw report (no diffing)
+report = ScanReport(image="ubuntu:22.04", scanner="acs").raw_result
+
+# SBOM variant
+sbom_report = ScanReport(sbom="current.sbom.json", scanner="acs").raw_result
+```
+
 #### Comparing SBOMs
 
 ```python
