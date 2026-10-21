@@ -5,7 +5,7 @@ Stack: Python 3.9+, Click, Rich, Hatchling.
 
 ## Architecture
 Scans two versions of an image/SBOM via a third-party scanner. Vulnerabilities in the older scan but missing from the newer are reported as fixed; vulnerabilities in the newer scan but missing from the older are reported as newly introduced.
-- `diffused/diffused/`: Core lib (`differ.py`, `scanners/` [base, trivy, acs, models])
+- `diffused/diffused/`: Core lib (`differ.py`, `report.py`, `scanners/` [base, trivy, acs, models, registry])
 - `diffusedcli/diffusedcli/`: CLI package (`cli.py` using Click)
 - `diffused/tests/` & `diffusedcli/tests/`: Pytest suites
 
