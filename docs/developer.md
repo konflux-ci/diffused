@@ -31,7 +31,9 @@ diffused/diffused/
 │   ├── base.py        # Abstract scanner interface
 │   ├── acs.py         # RHACS scanner implementation
 │   ├── trivy.py       # Trivy scanner implementation
+│   ├── registry.py    # Scanner name -> class registry
 │   └── models.py      # Data models (Package, etc.)
+├── report.py          # Single-target scan report (ScanReport)
 └── differ.py          # Core diffing logic
 ```
 
@@ -47,6 +49,7 @@ diffusedcli/diffusedcli/
 - **BaseScanner**: Abstract base class defining the scanner interface
 - **ACSScanner**: Concrete implementation using RHACS for vulnerability scanning
 - **TrivyScanner**: Concrete implementation using Trivy for vulnerability scanning
+- **ScanReport**: Scans a single image or SBOM and lazily exposes the scanner's results
 - **VulnerabilityDiffer**: Core engine for comparing vulnerability reports
 - **CLI Module**: User-friendly command-line interface with rich output
 
@@ -83,7 +86,7 @@ To add support for a new vulnerability scanner:
 2. Implement the required abstract methods
 3. Add comprehensive unit tests
 4. Update the CLI to support the new scanner
-5. Add the scanner to the scanner map in `VulnerabilityDiffer._get_scanner_class()`
+5. Register the scanner in the `SCANNERS` map in `diffused/scanners/registry.py` (used by `get_scanner_class()`, which both `VulnerabilityDiffer` and `ScanReport` rely on)
 
 Example:
 ```python

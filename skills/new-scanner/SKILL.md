@@ -44,6 +44,7 @@ Inspect the JSON output from each and identify:
 Read these files to understand the conventions:
 - `diffused/diffused/scanners/base.py` — abstract base class with 4 required methods
 - `diffused/diffused/scanners/trivy.py` — reference implementation
+- `diffused/diffused/scanners/registry.py` — the `SCANNERS` map where scanners are registered
 - `diffused/tests/scanners/test_trivy.py` — reference test structure
 - `diffused/tests/conftest.py` — shared fixtures (`test_image`, `test_sbom_path`)
 
@@ -71,9 +72,9 @@ Create `diffused/tests/scanners/test_$name.py`:
 
 ## Step 6: Register the scanner
 
-Edit `diffused/diffused/differ.py`:
+Edit `diffused/diffused/scanners/registry.py`:
 - Add an import for the new scanner class
-- Add an entry to the `scanner_map` dict in `VulnerabilityDiffer._get_scanner_class()`
+- Add an entry to the `SCANNERS` dict (used by `get_scanner_class()`, which both `VulnerabilityDiffer` and `ScanReport` select scanners through)
 
 Edit `diffusedcli/diffusedcli/cli.py`:
 - Add `$name` to the `click.Choice` list in the `--scanner` option
