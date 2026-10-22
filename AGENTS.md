@@ -24,5 +24,6 @@ Scans two versions of an image/SBOM via a third-party scanner. Vulnerabilities i
 - **Data Models**: Map raw scanner JSON payloads to `scanners/models.py` immediately. Do not pass raw dictionaries.
 - **Dependencies**: Uses Hatchling. If adding packages, ONLY modify `pyproject.toml`. 
 - **Comments**: Inline comments must always start with a lowercase letter.
+- **Docstrings**: Write docstrings for all public functions, methods, and classes. Document purpose, parameters, return values, and usage directives in docstrings — not inline comments. Inline comments are for implementation-level notes only.
 - **Commits**: Use conventional commits (e.g., `feat:`, `fix:`, `chore:`).
 - **Prohibitions**: Do NOT modify `.github/workflows/` or `pyproject.toml` dependencies unless explicitly commanded.
