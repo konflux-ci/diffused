@@ -17,6 +17,7 @@ We welcome contributions! Check below on how to get started.
 - **Type Hints**: Use type annotations for all functions
 - **Testing**: Maintain 100% test coverage
 - **Comments**: Use lowercase first letters for inline comments
+- **Docstrings**: Write docstrings for all public functions, methods, and classes. Document purpose, parameters, return values, and usage directives in docstrings — not inline comments.
 - **Tests**: Write function-based tests (not class-based)
 
 ## Structure
