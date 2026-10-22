@@ -27,4 +27,4 @@ Scans two versions of an image/SBOM via a third-party scanner. Vulnerabilities i
 - **Docstrings**: Write docstrings for all public functions, methods, and classes. Document purpose, parameters, return values, and usage directives in docstrings — not inline comments. Inline comments are for implementation-level notes only.
 - **Commits**: Use conventional commits (e.g., `feat:`, `fix:`, `chore:`).
 - **Prohibitions**: Do NOT modify `.github/workflows/` or `pyproject.toml` dependencies unless explicitly commanded.
-- **Documentation sync**: The Coding Standards section in `docs/developer.md` mirrors these directives. When changing Agent Directives, update both files with identical text.
+- **Documentation Sync**: The Coding Standards section in `docs/developer.md` summarizes these directives and must be kept in sync. When adding, modifying, or removing Agent Directives, update the corresponding entry in `docs/developer.md` as well.
