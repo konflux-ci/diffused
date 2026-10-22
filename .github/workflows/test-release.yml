@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-lib:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.repository == 'konflux-ci/diffused'
 
     steps:
@@ -41,7 +41,7 @@ jobs:
         path: diffused/dist/
 
   build-cli:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.repository == 'konflux-ci/diffused'
 
     steps:
@@ -75,7 +75,7 @@ jobs:
         path: diffusedcli/dist/
 
   test-lib:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: build-lib
     if: github.repository == 'konflux-ci/diffused'
 
@@ -102,7 +102,7 @@ jobs:
         python -c "import diffused; print('Library imported successfully')"
 
   test-cli:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [build-lib, build-cli]
     if: github.repository == 'konflux-ci/diffused'
 
@@ -140,7 +140,7 @@ jobs:
         diffused --help
 
   publish-to-test-pypi:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [test-lib, test-cli]
     if: github.repository == 'konflux-ci/diffused'
     permissions:
