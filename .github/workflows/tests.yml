@@ -9,7 +9,7 @@ on:
 jobs:
   test:
     name: Run Unit Tests and Linters
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         python-version: ["3.9"]
@@ -74,7 +74,7 @@ jobs:
 
   commitlint:
     name: Conventional Commit Lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4.2.2
