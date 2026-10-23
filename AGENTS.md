@@ -10,11 +10,11 @@ Scans two versions of an image/SBOM via a third-party scanner. Vulnerabilities i
 - `diffused/tests/` & `diffusedcli/tests/`: Pytest suites
 
 ### CI Workflows (`.github/workflows/`)
-- `tests.yml`: lint + test (py39-pytest, commitlint)
-- `test-release.yml`: build + test + publish to Test PyPI
-- `release.yml`: build + test + publish to PyPI
+- `tests.yml`: Lint + test (py39-pytest, commitlint)
+- `test-release.yml`: Build + test + publish to Test PyPI
+- `release.yml`: Build + test + publish to PyPI
 
-The three Python workflows share similar job structures (build-lib, build-cli, test-lib, test-cli). Runner image or Python version changes must be applied to all three.
+`test-release.yml` and `release.yml` share identical job structures (build-lib, build-cli, test-lib, test-cli). `tests.yml` runs equivalent steps within a single job via tox. Runner image or Python version changes must be applied to all three.
 
 ## Commands
 - **Setup**: `pip install -e ./diffused/.[dev] && pip install -e ./diffusedcli/.[dev]`
