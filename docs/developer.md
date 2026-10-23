@@ -55,7 +55,7 @@ diffusedcli/diffusedcli/
 └── release.yml        # Build + test + publish to PyPI
 ```
 
-`test-release.yml` and `release.yml` share identical job structures (build-lib, build-cli, test-lib, test-cli). `tests.yml` runs equivalent steps within a single job via tox. Runner image or Python version changes should be applied to all three.
+`test-release.yml` and `release.yml` share identical job structures (build-lib, build-cli, test-lib, test-cli). `tests.yml` runs equivalent steps within a single job via tox. Runner image or Python version changes must be applied to all three.
 
 ### Key Components
 
