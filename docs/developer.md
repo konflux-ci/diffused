@@ -46,6 +46,17 @@ diffusedcli/diffusedcli/
 └── cli.py             # CLI implementation
 ```
 
+### CI Workflows
+
+```
+.github/workflows/
+├── tests.yml          # Lint + test (py39-pytest, commitlint)
+├── test-release.yml   # Build + test + publish to Test PyPI
+└── release.yml        # Build + test + publish to PyPI
+```
+
+`test-release.yml` and `release.yml` share near-identical job structures (build-lib, build-cli, test-lib, test-cli). `tests.yml` runs equivalent steps within a single job via tox. Runner image or Python version changes must be applied to all three.
+
 ### Key Components
 
 - **BaseScanner**: Abstract base class defining the scanner interface

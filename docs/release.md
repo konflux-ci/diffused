@@ -181,3 +181,4 @@ pip install diffused-cli
 - **Credentials**: Use API tokens for secure authentication
 - **Version Control**: Tag releases in Git for tracking
 - **Dependencies**: The package includes both library and CLI dependencies
+- **CI Workflows**: `tests.yml`, `test-release.yml`, and `release.yml` share related job structures; runner image or Python version changes must be applied to all three workflows (see [CI Workflows in the developer guide](developer.md#ci-workflows))
