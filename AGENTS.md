@@ -8,8 +8,7 @@ Scans two versions of an image/SBOM via a third-party scanner. Vulnerabilities i
 - `diffused/diffused/`: Core lib (`differ.py`, `report.py`, `scanners/` [base, trivy, acs, models, registry])
 - `diffusedcli/diffusedcli/`: CLI package (`cli.py` using Click)
 - `diffused/tests/` & `diffusedcli/tests/`: Pytest suites
-
-- `.github/workflows/`: CI Workflows — `tests.yml` (Lint + test via tox), `test-release.yml` (Build + test + publish to Test PyPI), `release.yml` (Build + test + publish to PyPI). `test-release.yml` and `release.yml` share identical job structures (build-lib, build-cli, test-lib, test-cli); `tests.yml` runs equivalent steps in a single job. Runner image or Python version changes must be applied to all three.
+- `.github/workflows/`: CI Workflows — `tests.yml` (Lint + test via tox), `test-release.yml` (Build + test + publish to Test PyPI), `release.yml` (Build + test + publish to PyPI). `test-release.yml` and `release.yml` share near-identical job structures (build-lib, build-cli, test-lib, test-cli); `tests.yml` runs equivalent steps in a single job. Runner image or Python version changes must be applied to all three.
 
 ## Commands
 - **Setup**: `pip install -e ./diffused/.[dev] && pip install -e ./diffusedcli/.[dev]`
