@@ -19,6 +19,7 @@ We welcome contributions! Check below on how to get started.
 - **Comments**: Use lowercase first letters for inline comments
 - **Docstrings**: Write docstrings for all public functions, methods, and classes. Document purpose, parameters, return values, and usage directives in docstrings — not inline comments. Inline comments are for implementation-level notes only.
 - **Tests**: Write function-based tests (not class-based)
+- **Documentation Sync**: The Coding Standards section here summarizes the Agent Directives in `AGENTS.md` and must be kept in sync. When adding, modifying, or removing Agent Directives, update both files.
 
 ## Structure
 
