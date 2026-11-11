@@ -21,7 +21,7 @@ class GrypeScanner(BaseScanner):
                 capture_output=True,
                 shell=False,
                 text=True,
-                timeout=120,
+                timeout=self.timeout,
             )
             result.check_returncode()
             return result

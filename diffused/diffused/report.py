@@ -25,8 +25,11 @@ class ScanReport:
         sbom: Optional[str] = None,
         scanner: str = "trivy",
         scan_type: Optional[str] = None,
+        timeout: Optional[int] = None,
     ):
-        self.scanner: BaseScanner = get_scanner_class(scanner)(image=image, sbom=sbom)
+        self.scanner: BaseScanner = get_scanner_class(scanner)(
+            image=image, sbom=sbom, timeout=timeout
+        )
         # infer the scan type from the provided target when not set explicitly
         self.scan_type: str = scan_type or ("sbom" if sbom else "image")
         self._processed: bool = False

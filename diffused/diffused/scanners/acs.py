@@ -15,8 +15,22 @@ logger = logging.getLogger(__name__)
 class ACSScanner(BaseScanner):
     """ACS scanner class."""
 
-    def __init__(self, sbom: Optional[str] = None, image: Optional[str] = None):
-        super().__init__(sbom, image)
+    def __init__(
+        self,
+        sbom: Optional[str] = None,
+        image: Optional[str] = None,
+        timeout: Optional[int] = None,
+    ):
+        """Initialize the ACS scanner and validate the ROX environment.
+
+        See ``BaseScanner.__init__`` for the ``sbom``, ``image``, and ``timeout``
+        parameters.
+
+        Raises:
+            ValueError: on an invalid target or timeout (see ``BaseScanner.__init__``),
+                or when the required ROX environment variables are not set.
+        """
+        super().__init__(sbom, image, timeout)
         self._validate_environment()
 
     def _validate_environment(self) -> None:
@@ -48,7 +62,7 @@ class ACSScanner(BaseScanner):
                 capture_output=True,
                 shell=False,
                 text=True,
-                timeout=120,  # 2 minutes timeout
+                timeout=self.timeout,
             )
             result.check_returncode()
             return result
