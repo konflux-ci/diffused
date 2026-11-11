@@ -1,10 +1,17 @@
 """Simple unit tests for BaseScanner abstract class."""
 
 from collections import defaultdict
+from unittest.mock import patch
 
 import pytest
 
-from diffused.scanners.base import BaseScanner
+from diffused.scanners.base import (
+    DEFAULT_SCAN_TIMEOUT,
+    MAX_SCAN_TIMEOUT,
+    SCAN_TIMEOUT_ENV_VAR,
+    BaseScanner,
+    resolve_scan_timeout,
+)
 from diffused.scanners.models import Package
 
 
@@ -89,6 +96,84 @@ def test_default_attributes(test_sbom_path):
     assert scanner.raw_result is None
     assert isinstance(scanner.processed_result, defaultdict)
     assert scanner.error == ""
+
+
+def test_default_timeout(test_sbom_path):
+    """Test the scanner defaults to DEFAULT_SCAN_TIMEOUT when no timeout is set.
+
+    The autouse clear_scan_timeout_env fixture guarantees DIFFUSED_SCAN_TIMEOUT is unset.
+    """
+    scanner = ScannerClassTest(sbom=test_sbom_path)
+    assert scanner.timeout == DEFAULT_SCAN_TIMEOUT
+    assert DEFAULT_SCAN_TIMEOUT > 120
+
+
+def test_explicit_timeout_override(test_sbom_path):
+    """Test an explicit timeout argument is used verbatim."""
+    scanner = ScannerClassTest(sbom=test_sbom_path, timeout=42)
+    assert scanner.timeout == 42
+
+
+def test_timeout_from_env_var(test_sbom_path):
+    """Test the timeout falls back to DIFFUSED_SCAN_TIMEOUT when set."""
+    with patch.dict("os.environ", {SCAN_TIMEOUT_ENV_VAR: "300"}):
+        scanner = ScannerClassTest(sbom=test_sbom_path)
+    assert scanner.timeout == 300
+
+
+def test_explicit_timeout_overrides_env_var(test_sbom_path):
+    """Test an explicit timeout argument wins over the env var."""
+    with patch.dict("os.environ", {SCAN_TIMEOUT_ENV_VAR: "300"}):
+        scanner = ScannerClassTest(sbom=test_sbom_path, timeout=42)
+    assert scanner.timeout == 42
+
+
+def test_invalid_env_var_raises(test_sbom_path):
+    """Test a non-integer env var fails closed with a clear error."""
+    with patch.dict("os.environ", {SCAN_TIMEOUT_ENV_VAR: "not-a-number"}):
+        with pytest.raises(ValueError, match=SCAN_TIMEOUT_ENV_VAR):
+            ScannerClassTest(sbom=test_sbom_path)
+
+
+def test_resolve_scan_timeout_precedence():
+    """Test resolve_scan_timeout honors argument > env var > default precedence."""
+    with patch.dict("os.environ", {SCAN_TIMEOUT_ENV_VAR: "300"}):
+        assert resolve_scan_timeout(42) == 42
+        assert resolve_scan_timeout() == 300
+    # the autouse fixture guarantees the env var is unset outside the patched block
+    assert resolve_scan_timeout() == DEFAULT_SCAN_TIMEOUT
+
+
+@pytest.mark.parametrize("bad_timeout", [0, -1, MAX_SCAN_TIMEOUT + 1])
+def test_explicit_timeout_out_of_range_raises(test_sbom_path, bad_timeout):
+    """Test a non-positive or overflow-sized explicit timeout fails closed."""
+    with pytest.raises(ValueError, match="positive integer"):
+        ScannerClassTest(sbom=test_sbom_path, timeout=bad_timeout)
+
+
+@pytest.mark.parametrize("bad_value", ["0", "-5", str(MAX_SCAN_TIMEOUT + 1)])
+def test_env_var_out_of_range_raises(test_sbom_path, bad_value):
+    """Test a non-positive or overflow-sized env var timeout fails closed."""
+    with patch.dict("os.environ", {SCAN_TIMEOUT_ENV_VAR: bad_value}):
+        with pytest.raises(ValueError, match="positive integer"):
+            ScannerClassTest(sbom=test_sbom_path)
+
+
+def test_max_timeout_is_accepted(test_sbom_path):
+    """Test the upper bound itself is a valid timeout."""
+    scanner = ScannerClassTest(sbom=test_sbom_path, timeout=MAX_SCAN_TIMEOUT)
+    assert scanner.timeout == MAX_SCAN_TIMEOUT
+
+
+@pytest.mark.parametrize("bad_timeout", [1.5, True, "600"])
+def test_non_integer_timeout_raises(test_sbom_path, bad_timeout):
+    """Test a non-integer explicit timeout (float, bool, str) fails closed with ValueError.
+
+    bool is an int subclass and str would raise a TypeError on the range comparison, so
+    both must be rejected with the documented ValueError like any other invalid value.
+    """
+    with pytest.raises(ValueError, match="positive integer"):
+        ScannerClassTest(sbom=test_sbom_path, timeout=bad_timeout)
 
 
 def test_processed_result_defaultdict_behavior(test_sbom_path):

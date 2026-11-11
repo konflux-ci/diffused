@@ -5,6 +5,17 @@ from unittest.mock import patch
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def clear_scan_timeout_env(monkeypatch):
+    """Isolate tests from a DIFFUSED_SCAN_TIMEOUT set in the developer's environment.
+
+    The README tells operators to export this variable, so without this the scanner
+    timeout assertions would depend on the ambient environment. Tests that exercise
+    the env var set it explicitly within their own context.
+    """
+    monkeypatch.delenv("DIFFUSED_SCAN_TIMEOUT", raising=False)
+
+
 @pytest.fixture
 def rox_env():
     """Fixture to provide valid ROX environment variables."""

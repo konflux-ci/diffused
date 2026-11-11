@@ -20,13 +20,22 @@ class VulnerabilityDiffer:
         next_image: Optional[str] = None,
         scanner: str = "trivy",
         scan_type: Optional[str] = None,
+        timeout: Optional[int] = None,
     ):
         # the differ is simply two single-target reports plus the diff logic
         self.previous_release = ScanReport(
-            image=previous_image, sbom=previous_sbom, scanner=scanner, scan_type=scan_type
+            image=previous_image,
+            sbom=previous_sbom,
+            scanner=scanner,
+            scan_type=scan_type,
+            timeout=timeout,
         )
         self.next_release = ScanReport(
-            image=next_image, sbom=next_sbom, scanner=scanner, scan_type=scan_type
+            image=next_image,
+            sbom=next_sbom,
+            scanner=scanner,
+            scan_type=scan_type,
+            timeout=timeout,
         )
         self._vulnerabilities_diff: Optional[List[str]] = None
         self._vulnerabilities_diff_all_info: Optional[

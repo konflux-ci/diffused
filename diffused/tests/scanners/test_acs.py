@@ -10,7 +10,7 @@ from diffused.scanners.acs import ACSScanner
 from diffused.scanners.models import Package
 
 # Test constants
-COMMAND_TIMEOUT = 120
+COMMAND_TIMEOUT = 600
 VERSION_TIMEOUT = 10
 SUCCESS_RETURN_CODE = 0
 ERROR_RETURN_CODE = 1
@@ -138,6 +138,19 @@ def test_acs_command_execution_succeeds_with_valid_subprocess_result(mock_run, r
         ROXCTL_VERSION_COMMAND, capture_output=True, shell=False, text=True, timeout=COMMAND_TIMEOUT
     )
     assert result == mock_result
+
+
+@patch("diffused.scanners.acs.subprocess.run")
+def test_acs_command_execution_uses_configured_timeout(mock_run, rox_env, test_image):
+    """Test _run_acs_command passes the scanner's configured timeout to subprocess."""
+    scanner = ACSScanner(image=test_image, timeout=55)
+    mock_run.return_value = create_mock_result(returncode=SUCCESS_RETURN_CODE)
+
+    scanner._run_acs_command(ROXCTL_VERSION_COMMAND, "test operation")
+
+    mock_run.assert_called_once_with(
+        ROXCTL_VERSION_COMMAND, capture_output=True, shell=False, text=True, timeout=55
+    )
 
 
 @patch("diffused.scanners.acs.subprocess.run")

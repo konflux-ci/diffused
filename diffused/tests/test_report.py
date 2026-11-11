@@ -39,6 +39,12 @@ def test_infers_sbom_scan_type(test_sbom_path):
     assert report.image is None
 
 
+def test_propagates_timeout_to_scanner(test_image):
+    """Test the timeout is forwarded to the underlying scanner."""
+    report = ScanReport(image=test_image, scanner="trivy", timeout=55)
+    assert report.scanner.timeout == 55
+
+
 def test_explicit_scan_type_is_kept(test_image):
     report = ScanReport(image=test_image, scan_type="image")
     assert report.scan_type == "image"

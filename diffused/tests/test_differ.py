@@ -24,6 +24,18 @@ def _seed(report, processed=None):
     report._processed = True
 
 
+def test_init_propagates_timeout(test_previous_image, test_next_image):
+    """Test the timeout is forwarded to both underlying release scanners."""
+    differ = VulnerabilityDiffer(
+        previous_image=test_previous_image,
+        next_image=test_next_image,
+        scanner="trivy",
+        timeout=55,
+    )
+    assert differ.previous_release.scanner.timeout == 55
+    assert differ.next_release.scanner.timeout == 55
+
+
 def test_init_with_sbom_paths(test_previous_sbom_path, test_next_sbom_path):
     """Test VulnerabilityDiffer initialization with SBOM paths."""
     differ = VulnerabilityDiffer(

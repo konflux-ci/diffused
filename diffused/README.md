@@ -114,3 +114,38 @@ acs_differ = VulnerabilityDiffer(
     scan_type="image"
 )
 ```
+
+#### Configuring the Scan Timeout
+
+Each scan runs the scanner as a subprocess with a timeout (in seconds). A timeout
+fails closed: the scanner error is surfaced and the scan raises rather than returning
+a truncated result. The default is `600` seconds, chosen to tolerate a cold (uncached)
+scan (raised from a previous hardcoded `120` seconds, which was too short for a
+first-seen image).
+
+The timeout is configurable, with the following precedence (highest first):
+
+1. The `timeout` argument to `VulnerabilityDiffer`, `ScanReport`, or a scanner.
+2. The `DIFFUSED_SCAN_TIMEOUT` environment variable.
+3. The built-in default (`600`).
+
+```python
+from diffused.differ import VulnerabilityDiffer
+
+# Override the scan timeout to 900 seconds for a slow backend
+differ = VulnerabilityDiffer(
+    previous_image="nginx:1.20",
+    next_image="nginx:1.21",
+    scanner="acs",
+    scan_type="image",
+    timeout=900,
+)
+```
+
+```bash
+# Or set it per environment, without changing code
+export DIFFUSED_SCAN_TIMEOUT=900
+```
+
+> The version-check probe (`get_version`) keeps a short, fixed 10s timeout and is not
+> affected by this setting.

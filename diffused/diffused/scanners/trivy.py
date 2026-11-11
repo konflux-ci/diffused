@@ -21,7 +21,7 @@ class TrivyScanner(BaseScanner):
                 capture_output=True,
                 shell=False,
                 text=True,
-                timeout=120,  # 2 minutes timeout
+                timeout=self.timeout,
             )
             result.check_returncode()
             return result

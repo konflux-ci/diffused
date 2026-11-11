@@ -54,9 +54,24 @@ def test_run_trivy_command_success(mock_run, test_image):
     result = scanner._run_trivy_command(["trivy", "--version"], "test operation")
 
     mock_run.assert_called_once_with(
-        ["trivy", "--version"], capture_output=True, shell=False, text=True, timeout=120
+        ["trivy", "--version"], capture_output=True, shell=False, text=True, timeout=600
     )
     assert result == mock_result
+
+
+@patch("diffused.scanners.trivy.subprocess.run")
+def test_run_trivy_command_uses_configured_timeout(mock_run, test_image):
+    """Test _run_trivy_command passes the scanner's configured timeout to subprocess."""
+    scanner = TrivyScanner(image=test_image, timeout=55)
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_run.return_value = mock_result
+
+    scanner._run_trivy_command(["trivy", "--version"], "test operation")
+
+    mock_run.assert_called_once_with(
+        ["trivy", "--version"], capture_output=True, shell=False, text=True, timeout=55
+    )
 
 
 @patch("diffused.scanners.trivy.subprocess.run")
@@ -76,7 +91,7 @@ def test_run_trivy_command_called_process_error(mock_run, test_image):
 def test_run_trivy_command_timeout(mock_run, test_image):
     """Test _run_trivy_command with timeout."""
     scanner = TrivyScanner(image=test_image)
-    mock_run.side_effect = subprocess.TimeoutExpired(["trivy"], 120)
+    mock_run.side_effect = subprocess.TimeoutExpired(["trivy"], 600)
 
     with pytest.raises(subprocess.TimeoutExpired):
         scanner._run_trivy_command(["trivy", "--version"], "test operation")
