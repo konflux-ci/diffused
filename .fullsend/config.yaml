@@ -4,25 +4,67 @@
 # This file configures fullsend for per-repo installation mode.
 # See https://fullsend.sh/docs/guides/infrastructure/layered-config-reference
 version: "1"
-roles:
-    - fullsend
-    - triage
-    - coder
-    - fix
-    - review
-    - prioritize
 allowed_remote_resources:
     - https://raw.githubusercontent.com/fullsend-ai/fullsend/
     - https://raw.githubusercontent.com/fullsend-ai/agents/
-# Fullsend reviews are limited to maintainers.
 agents:
+    - name: triage
+      trigger: >-
+        event.transition.kind == "comment_added"
+            && has(event.transition.comment.command)
+            && event.transition.comment.command == "/fs-triage"
+            && event.actor.kind == "human"
+            && event.actor.id in [
+                "willianrampazzo",
+                "HozifaWasfy"
+            ]
+    - name: code
+      trigger: >-
+        event.transition.kind == "comment_added"
+            && has(event.transition.comment.command)
+            && event.transition.comment.command == "/fs-code"
+            && event.actor.kind == "human"
+            && event.actor.id in [
+                "willianrampazzo",
+                "HozifaWasfy"
+            ]
     - name: review
       trigger: >-
-            event.entity.kind == "work_item"
-            && event.transition.kind == "comment_added"
+        event.transition.kind == "comment_added"
+            && has(event.entity.linked_change_proposal)
             && has(event.transition.comment.command)
             && event.transition.comment.command == "/fs-review"
-            && event.state.change_proposal != null
+            && event.actor.kind == "human"
+            && event.actor.id in [
+                "willianrampazzo",
+                "HozifaWasfy"
+            ]
+    - name: fix
+      trigger: >-
+        event.transition.kind == "comment_added"
+            && has(event.entity.linked_change_proposal)
+            && has(event.transition.comment.command)
+            && event.transition.comment.command == "/fs-fix"
+            && event.actor.kind == "human"
+            && event.actor.id in [
+                "willianrampazzo",
+                "HozifaWasfy"
+            ]
+    - name: prioritize
+      trigger: >-
+        event.transition.kind == "comment_added"
+            && has(event.transition.comment.command)
+            && event.transition.comment.command == "/fs-prioritize"
+            && event.actor.kind == "human"
+            && event.actor.id in [
+                "willianrampazzo",
+                "HozifaWasfy"
+            ]
+    - name: retro
+      trigger: >-
+        event.transition.kind == "comment_added"
+            && has(event.transition.comment.command)
+            && event.transition.comment.command == "/fs-retro"
             && event.actor.kind == "human"
             && event.actor.id in [
                 "willianrampazzo",
