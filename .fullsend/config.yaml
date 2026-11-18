@@ -28,8 +28,9 @@ agents:
                 "willianrampazzo",
                 "HozifaWasfy"
             ]
-create_issues:
-    allow_targets:
-        repos:
-            - konflux-ci/diffused
-            - fullsend-ai/fullsend
+tracker:
+    github:
+        allowed_targets:
+            repos:
+                - konflux-ci/diffused
+                - fullsend-ai/fullsend
